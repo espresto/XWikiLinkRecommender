@@ -28,6 +28,7 @@ package de.csw.ontology.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.hp.hpl.jena.ontology.Individual;
 import com.hp.hpl.jena.ontology.OntClass;
 import com.hp.hpl.jena.rdf.model.Literal;
 import com.hp.hpl.jena.util.iterator.ExtendedIterator;
@@ -99,6 +100,32 @@ public class OntologyUtils {
 
 		return result;
 	}
+
+	/**
+	 * Returns a list containing all labels for the given individual, in all
+	 * languages specified in the global application configuration.
+	 * 
+	 * @param indi
+	 *            an Individual
+	 * @return a list of labels for the given Individual
+	 */
+	public static List<String> getLabelsIndividual(Individual indi) {
+		ArrayList<String> result = new ArrayList<String>();
+		List<String> languages = Config.getListProperty(Config.LANGUAGES);
+		for (String language : languages) {
+			ExtendedIterator labelIter = indi.listLabels(language);
+			while (labelIter.hasNext()) {
+				Literal label = (Literal)labelIter.next();
+				result.add(label.getString());
+			}
+		}
+
+        if (result.isEmpty()) {
+           result.add(_getLabel(indi.getURI()));
+        }
+
+		return result;
+	}
 	
 	/**
 	 * Returns a list containing all labels for the given classes, in all
@@ -117,4 +144,26 @@ public class OntologyUtils {
 		
 		return result;
 	}
+	
+	/**
+	 * Returns a list containing all labels for the given classes, in all
+	 * languages specified in the global application configuration.
+	 * 
+	 * @param classes
+	 *            a list of Individual
+	 * @return a list of labels for the given Individual
+     */
+	public static List<String> getLabelsIndividuals(List<Individual> indu) {
+		ArrayList<String> result = new ArrayList<String>();
+		
+		for (Individual ind : indu) {
+			result.addAll(getLabelsIndividual(ind));
+		}
+		
+		return result;
+	} 
+	
+	
 }
+
+

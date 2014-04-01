@@ -87,9 +87,10 @@
         <rdfs:label xml:lang="de">Gew&#252;rz</rdfs:label>
         <rdfs:label xml:lang="en">condiment</rdfs:label>
         <rdfs:label xml:lang="en">spice</rdfs:label>
+				<owl:equivalentClass rdf:resource="#Gr&#252;nzeugs"/>
+				<owl:equivalentClass rdf:resource="#Sommerwiese"/>
     </owl:Class>
-    
-
+ 
 
     <!-- http://www.ag-csw.de/ontologies/gewuerz#Gew&#252;rzmischung -->
 
@@ -100,7 +101,25 @@
     </owl:Class>
     
 
+		<!-- http://www.ag-csw.de/ontologies/gewuerz#Hopfen   EM: eingefügt -->
 
+		<owl:Class rdf:about="#Hopfen">
+			<rdfs:label xml:lang="de">Hopfen</rdfs:label>
+			<rdfs:label xml:lang="en">hop</rdfs:label>
+			<rdfs:subClassOf rdf:resource="#Gew&#252;rz"/>
+		</owl:Class>
+    
+		<owl:Class rdf:about="#Sommerwiese">
+			<rdfs:label xml:lang="de">Sommerwiese</rdfs:label>
+		</owl:Class>
+
+		<owl:Class rdf:about="#Gr&#252;nzeugs">
+			<rdfs:label xml:lang="de">Gr&#252;nzeugs</rdfs:label>
+		</owl:Class>
+		   
+		
+
+		
     <!-- http://www.ag-csw.de/ontologies/gewuerz#Glanzkerbel -->
 
     <owl:Class rdf:about="#Glanzkerbel">

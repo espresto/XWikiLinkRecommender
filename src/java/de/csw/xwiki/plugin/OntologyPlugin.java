@@ -27,6 +27,14 @@ package de.csw.xwiki.plugin;
 
 import org.apache.log4j.Logger;
 
+import virtuoso.jena.driver.VirtDataset;
+import virtuoso.jena.driver.VirtGraph;
+
+
+import com.hp.hpl.jena.ontology.OntModel;
+import com.hp.hpl.jena.ontology.OntModelSpec;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.api.Api;
 import com.xpn.xwiki.notify.XWikiNotificationManager;
@@ -62,10 +70,17 @@ public class OntologyPlugin extends XWikiDefaultPlugin {
 		Config.loadConfigFile(cl.getResourceAsStream(APP_PROP_FILE), false);
 		log.debug("Loading properties from file " + APP_PROP_FILE + ".user");
 		Config.loadConfigFile(cl.getResourceAsStream(APP_PROP_FILE + ".user"), true);
-		
-		// load the ontology
-		log.debug("Loading ontology from file " + Config.getAppProperty(Config.ONTOLOGY_FILE));
-		OntologyIndex.get().load(cl.getResourceAsStream(Config.getAppProperty(Config.ONTOLOGY_FILE)));
+
+		// load the ontology  (Config.getAppProperty(Config.ONTOLOGY_SOURCE)!=null) && 
+		if(Config.getAppProperty(Config.ONTOLOGY_SOURCE).equals("virtuoso")){ 
+			log.debug("Loading ontology from virtuoso");
+			OntologyIndex.get().load(readModel());			
+		}
+		else{
+			log.debug("Loading ontology from file " + Config.getAppProperty(Config.ONTOLOGY_FILE));
+			OntologyIndex.get().load(cl.getResourceAsStream(Config.getAppProperty(Config.ONTOLOGY_FILE)));
+		}
+
 		log.debug("** " + OntologyIndex.get().getModel().size() + " statements loaded.");
 		
 		XWikiNotificationManager notificationManager = context.getWiki().getNotificationManager();
@@ -73,7 +88,27 @@ public class OntologyPlugin extends XWikiDefaultPlugin {
 		XWikiNotificationRule rule = new OntologyNotificationRule(this);
 		notificationManager.addGeneralRule(rule);
 	}
+
+/* get the Ont Model from virtuoso */	
+    public OntModel readModel() {
+        VirtDataset dataSet = openDataset();
+
+//        Model baseModel = dataSet.getNamedModel(virtConfig.getDefaultGraph());
+        log.debug("load Graph: "+Config.getAppProperty(Config.ONTOLOGY_GRAPH)+ " from virtuoso DB" );
+        Model baseModel = dataSet.getNamedModel(Config.getAppProperty(Config.ONTOLOGY_GRAPH));
+        OntModel ontModel = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM, baseModel);
+
+        return ontModel;
+    }
+    private VirtDataset openDataset() {
+        return new VirtDataset(Config.getAppProperty(Config.VIRTUOSO_URL),
+        					   Config.getAppProperty(Config.VIRTUOSO_USR), 
+        					   Config.getAppProperty(Config.VIRTUOSO_PW));
+    }
 	
+	
+/* end read ontology from virtuoso ************************/
+    
 	@Override
 	public String getName() {
 		return ID;

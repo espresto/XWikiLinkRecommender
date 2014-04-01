@@ -50,6 +50,13 @@ public class Config {
 	public static final String LUCENE_MAXSEARCHTERMS = "lucene.maxsearchterms";
 	
 	public static final String LANGUAGES = "languages";
+	
+	public static final String ONTOLOGY_SOURCE = "ontology.souce";
+	public static final String ONTOLOGY_GRAPH = "ontology.graph";
+	public static final String VIRTUOSO_URL = "virtuoso.url";
+	public static final String VIRTUOSO_USR = "virtuoso.user";
+	public static final String VIRTUOSO_PW = "virtuoso.pw";
+	
 
 	/**
 	 * Loads the properties from an input stream to the property hash table.

@@ -41,6 +41,8 @@ import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.de.GermanStemmer;
 import org.apache.lucene.analysis.de.Stemmer;
 
+import com.hp.hpl.jena.ontology.Individual;  // EM: incl
+
 import com.hp.hpl.jena.ontology.OntClass;
 import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.ontology.OntModelSpec;
@@ -103,6 +105,14 @@ public class OntologyIndex {
 	public OntModel getModel() {
 		return model;
 	}
+
+	/**
+	 * @write the ontology model   EM: testhalber eingefügt für virtuoso
+	 */
+	public void setModel(OntModel om) {
+		this.model = om;
+	}
+	
 	
 	/**
 	 * @return the stemmer used in the index
@@ -406,6 +416,19 @@ public class OntologyIndex {
 	}
 
 	/**
+	 * Load statements from an virtuoso - model.   EM: included for virtuoso
+	 * 
+	 * @param is
+	 *            OntModel om
+	 */
+	public void load(OntModel om) {
+		setModel(om);   // set the model
+		log.debug("(re)load model and create onto-index (from virtuoso)");
+		createIndex();
+	}
+	
+	
+	/**
 	 * Adds a new entry to all indexes, e.g., label index, prefix index. The
 	 * labels are retrieved from the URI.
 	 */
@@ -415,9 +438,12 @@ public class OntologyIndex {
 			return;
 		
 		ExtendedIterator it = model.listClasses();
+
 		OntClass c;
+log.debug("***** INDEXES: *****");		
 		while (it.hasNext()) {
 			c = (OntClass)it.next();
+log.debug("****** OntClass.localName: "+ c.getLocalName());
 			
 			if (c.hasLiteral(Jura.invisible, true))
 				continue;
@@ -426,14 +452,58 @@ public class OntologyIndex {
 				List<String> labels = OntologyUtils.getLabels(c);
 				// TODO maybe we should use the GermanAnalyzer at this place to have stop words removed
 				for (String label : labels) {
+log.debug("label: "+label);					
 					addToLabelIndex(stemmer.stem(label), c);
 					addToPrefixIndex(label);
 				}
 			}
 		}
+		addIndividulasToIndex();    //EM: add Individual label
 		log.debug("done");
+
 	}
 
+	//****************************** start ***********************************	
+	/**
+	 * Adds a new entry to all indexes, e.g., label index, prefix index. The
+	 * labels are retrieved from the Individuals.
+	 */
+	protected void addIndividulasToIndex() {
+		log.debug("add Individuals-label to index");
+		if (model.size() == 0)
+			return;
+		
+
+		ExtendedIterator ind_it = model.listIndividuals();
+		Individual ind;
+		List<Individual> result = new ArrayList<Individual>();
+		while (ind_it.hasNext()) {
+			ind = (Individual)ind_it.next();
+			log.debug("****** Individual.localName: "+ ind.getLocalName()+ ", with label: "+OntologyUtils.getLabelsIndividual(ind)+ ", from class: "+ind.getOntClass().getLocalName());
+			List<String> labels = OntologyUtils.getLabelsIndividual(ind);
+			for (String label : labels) {
+log.debug("indiv_label: "+label);					
+				addToLabelIndex(stemmer.stem(label), ind.getOntClass());
+				addToPrefixIndex(label);
+			}
+		}
+	}
+
+	
+	protected List<Individual> dumpIndividuals() {	
+		ExtendedIterator ind_it = model.listIndividuals();
+		Individual ind;
+		List<Individual> result = new ArrayList<Individual>();
+		while (ind_it.hasNext()) {
+			ind = (Individual)ind_it.next();
+			log.debug("****** Individual.localName: "+ ind.getLocalName()+ ", with label: "+OntologyUtils.getLabelsIndividual(ind)+ ", from class: "+ind.getOntClass().getLocalName());
+			result.add(ind);
+		}
+		return result;
+	}
+	//****************************** end ***********************************	
+	
+	
 	/**
 	 * @param term
 	 *            a term (can consist of multiple words)
@@ -473,6 +543,7 @@ public class OntologyIndex {
 			throw new NullPointerException("Parameter term must not be null");
 		
 		// TODO normalization of the term, e.g., remove all punctuation, '-', etc.
+log.debug("PrefixIndex.term: "+term);
 		String[] fragments = explode(term);
 		if (fragments.length <= 1)
 			return Collections.emptyList();
@@ -485,6 +556,7 @@ public class OntologyIndex {
 			prefix = implode(prefix, stemmer.stem(fragments[i]));
 			result.add(prefix);
 		}
+		log.debug("PrefixIndex.resultindex: "+result.toString());
 		
 		return result;
 	}

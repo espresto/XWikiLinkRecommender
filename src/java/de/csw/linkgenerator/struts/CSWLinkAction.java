@@ -8,6 +8,9 @@ import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.web.XWikiAction;
@@ -23,6 +26,8 @@ import de.csw.linkgenerator.plugin.lucene.SearchResults;
  */
 public class CSWLinkAction extends XWikiAction {
 
+    private static final Log LOG = LogFactory.getLog(CSWLinkAction.class);
+	
 	@Override
 	public boolean action(XWikiContext context) throws XWikiException {
 		XWikiRequest request = context.getRequest();
@@ -41,7 +46,10 @@ public class CSWLinkAction extends XWikiAction {
 		}
 
 		LucenePluginApi lucene = (LucenePluginApi)context.getWiki().getPluginApi("csw.linkgenerator.lucene", context);
+		System.out.println("***EM: CWSLinkAction.action *********************************");
 		SearchResults searchResults = lucene.getSearchResults(query, "de, en");
+
+		System.out.println("***EM2: CWSLinkAction.action, query: "+query+", Anzahl Results: "+ searchResults.getHitcount() + "  **************");
 		
 		Iterator<SearchResult> results = searchResults.getResults(1, 10).iterator();
 		
@@ -50,6 +58,7 @@ public class CSWLinkAction extends XWikiAction {
 			for (;;) {
 				SearchResult searchResult = results.next();
 				out.write(searchResult.getSpace());
+LOG.debug("***EM: CWSLinkAction.action searchResult.Space/Name, score: "+ searchResult.getSpace()+"/"+searchResult.getName()+", score: "+ searchResult.getScore());				
 				out.write('/');
 				out.write(searchResult.getName());
 				if (results.hasNext()) {

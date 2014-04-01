@@ -82,7 +82,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		StringBuilder result = new StringBuilder();
 		
 		initializeLinkIndex(text);
-		
+System.out.println("****EM: XWikiTextEnhancer.enhance, text to enhance: "+ text);		
 		try {
 			Reader r = new BufferedReader(new StringReader(text));
 			ts = ga.reusableTokenStream("", r);
@@ -94,9 +94,11 @@ public class XWikiTextEnhancer implements TextEnhancer {
 			while (token != null) {
 				result.append(text.substring(lastEndIndex, token.startOffset()));
 				term = String.copyValueOf(token.termBuffer(), 0, token.termLength());
+System.out.println("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\ntoken.startOffset(): "+token.startOffset()+ "\ntoken.termLength(): "+token.termLength()+"\ntoken.termBuffer(): "+ new String(token.termBuffer())+ "\nToken.term: "+token.term()+ "\nToken.type: "+token.type());		
 				
 				if (token.type().equals(ConceptFilter.CONCEPT_TYPE) && isAnnotatable(token)) {
 					log.debug("Annotating concept: " + term);
+System.out.println("****EM: XWikiTextEnhancer.enhance3, Annotating concept: "+ term);		
 					annotateWithSearch(result, text.substring(token.startOffset(), token.endOffset()));
 				} else {
 					result.append(text.substring(token.startOffset(), token.endOffset()));
@@ -109,6 +111,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		} catch (IOException e) {
 			Log.error("Error while processing the page content", e);
 		}
+System.out.println("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toString());		
 		
 		return result.toString();
 	}
@@ -171,7 +174,39 @@ public class XWikiTextEnhancer implements TextEnhancer {
 
 		if (matches.isEmpty())
 			return term;
+System.out.println("****EM: XWikiTextEnhancer.annotateWithSearch1, Anzahl similar matches aus Ontologie: "+ matches.size()+ ", vom term: "+ term);		
+		
+//		sb.append("<a class=\"similarconcept\" title=\"Suche nach den verwandten Begriffen: ");
+        sb.append("[["+term + ">>");   //EM: Wiki2 markup link    ** added
+		Iterator<String> it = matches.listIterator(1);
+/*		sb.append(it.next());
+		while (it.hasNext()) {
+			sb.append(", " + it.next());
+		}
+		sb.append("\" href=\"" + getSearchURL(matches) + "\">");
+		sb.append(term);
+		sb.append("</a>");
+*/
+		sb.append(getSearchURL(matches));   
+        sb.append("||title= \"Suche nach den verwandten Begriffen: ");  //EM: Wiki2 markup link: add attributes (parameter 
+        sb.append(it.next());
+		while (it.hasNext()) {
+			sb.append(", " + it.next());
+		}
+        sb.append("\" class=\"similarconcept\"");
+        sb.append("]]");  // EM: Wiki2 markup link    ** added end
+log.debug(sb.toString());		
+System.out.println("****EM: XWikiTextEnhancer.annotateWithSearch4,fertiger link: "+ sb.toString());		
+		return sb.toString();
+	}
 
+	/* ****** original methode ******************
+	protected String annotateWithSearch(StringBuilder sb, String term) {
+		List<String> matches = index.getSimilarMatchLabels(term, MAX_SIMILAR_CONCEPTS);
+
+		if (matches.isEmpty())
+			return term;
+		
 		sb.append("<a class=\"similarconcept\" title=\"Suche nach den verwandten Begriffen: ");
 		Iterator<String> it = matches.listIterator(1);
 		sb.append(it.next());
@@ -181,9 +216,12 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		sb.append("\" href=\"" + getSearchURL(matches) + "\">");
 		sb.append(term);
 		sb.append("</a>");
+
 		return sb.toString();
 	}
 
+*****************ende original methode***********************/	
+	
 	/**
 	 * Creates a link to the search wiki page.
 	 * 
@@ -193,6 +231,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	 */
 	protected String getSearchURL(Collection<String> terms) {
 		log.debug("** search terms: " + terms);
+System.out.println("****EM: XWikiTextEnhancer.getSearchURL, href-search terms: "+ terms);		
 		return LUCENE_URL + "?text=" + StringUtils.join(terms, '+');
 	}
 }

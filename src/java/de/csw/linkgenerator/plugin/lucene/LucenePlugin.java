@@ -47,6 +47,8 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TermQuery;
 
+import org.apache.lucene.util.Version;
+
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.api.Api;
 import com.xpn.xwiki.doc.XWikiAttachment;
@@ -61,6 +63,7 @@ import de.csw.linkgenerator.plugin.lucene.IndexUpdater;
 import de.csw.linkgenerator.plugin.lucene.LucenePlugin;
 import de.csw.linkgenerator.plugin.lucene.LucenePluginApi;
 import de.csw.linkgenerator.plugin.lucene.SearchResults;
+
 
 /**
  * A plugin offering support for advanced searches using Lucene, a high performance, open source
@@ -256,6 +259,7 @@ public class LucenePlugin extends XWikiDefaultPlugin implements XWikiPluginInter
     {
         // TODO Why is this here? This is slow, as it closes and opens indexes for each query.
         // openSearchers();
+System.out.println("****EM: LucenePlugin.getSearchResults: query: "+query+", sortField: "+ sortField+" ,virtualWikiNames: "+virtualWikiNames+", languages: "+languages);    	
         return search(query, sortField, virtualWikiNames, languages, this.searchers, context);
     }
 
@@ -371,6 +375,7 @@ public class LucenePlugin extends XWikiDefaultPlugin implements XWikiPluginInter
         MultiSearcher searcher = new MultiSearcher(indexes);
         // Enhance the base query with wiki names and languages.
         Query q = buildQuery(query, virtualWikiNames, languages);
+System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNames: "+virtualWikiNames+" ,languages: "+languages);        
         // Perform the actual search
         Hits hits = (sort == null) ? searcher.search(q) : searcher.search(q, sort);
         final int hitcount = hits.length();
@@ -437,7 +442,8 @@ public class LucenePlugin extends XWikiDefaultPlugin implements XWikiPluginInter
             parsedQuery = MultiFieldQueryParser.parse(query, fields, flags, analyzer);
             bQuery.add(parsedQuery, BooleanClause.Occur.MUST);
         } else {
-            QueryParser qp = new QueryParser("ft", analyzer);
+//            QueryParser qp = new QueryParser("ft", analyzer);
+            QueryParser qp = new QueryParser(org.apache.lucene.util.Version.LUCENE_29,"ft", analyzer);
             parsedQuery = qp.parse(query);
             bQuery.add(parsedQuery, BooleanClause.Occur.MUST);
         }
