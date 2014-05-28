@@ -21,6 +21,7 @@ package de.csw.linkgenerator.plugin.lucene;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -30,22 +31,27 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.queryParser.MultiFieldQueryParser;
-import org.apache.lucene.queryParser.ParseException;
-import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.queryparser.surround.parser.ParseException;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.Hits;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.MultiSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.Searcher;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.TopScoreDocCollector;
+import org.apache.lucene.search.TotalHitCountCollector;
+import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.util.Version;
 
 import org.apache.lucene.util.Version;
 
@@ -57,12 +63,6 @@ import com.xpn.xwiki.notify.DocChangeRule;
 import com.xpn.xwiki.notify.XWikiActionRule;
 import com.xpn.xwiki.plugin.XWikiDefaultPlugin;
 import com.xpn.xwiki.plugin.XWikiPluginInterface;
-import de.csw.linkgenerator.plugin.lucene.IndexFields;
-import de.csw.linkgenerator.plugin.lucene.IndexRebuilder;
-import de.csw.linkgenerator.plugin.lucene.IndexUpdater;
-import de.csw.linkgenerator.plugin.lucene.LucenePlugin;
-import de.csw.linkgenerator.plugin.lucene.LucenePluginApi;
-import de.csw.linkgenerator.plugin.lucene.SearchResults;
 
 
 /**
@@ -115,7 +115,7 @@ public class LucenePlugin extends XWikiDefaultPlugin implements XWikiPluginInter
      * List of Lucene indexes used for searching. By default there is only one such index for all
      * the wiki. One searches is created for each entry in {@link #indexDirs}.
      */
-    private Searcher[] searchers;
+    private IndexSearcher[] searchers;
 
     /**
      * Comma separated list of directories holding Lucene index data. The first such directory is
@@ -175,10 +175,10 @@ public class LucenePlugin extends XWikiDefaultPlugin implements XWikiPluginInter
     public SearchResults getSearchResultsFromIndexes(String query, String myIndexDirs,
         String languages, XWikiContext context) throws Exception
     {
-        Searcher[] mySearchers = createSearchers(myIndexDirs);
+        IndexSearcher[] mySearchers = createSearchers(myIndexDirs);
         SearchResults retval =
-            search(query, (String) null, null, languages, mySearchers, context);
-        closeSearchers(mySearchers);
+            search(query, (String) null, (String) null, languages, mySearchers, context);
+//        closeSearchers(mySearchers);
 
         return retval;
     }
@@ -203,9 +203,9 @@ public class LucenePlugin extends XWikiDefaultPlugin implements XWikiPluginInter
     public SearchResults getSearchResultsFromIndexes(String query, String[] sortFields,
         String myIndexDirs, String languages, XWikiContext context) throws Exception
     {
-        Searcher[] mySearchers = createSearchers(myIndexDirs);
+        IndexSearcher[] mySearchers = createSearchers(myIndexDirs);
         SearchResults retval = search(query, sortFields, null, languages, mySearchers, context);
-        closeSearchers(mySearchers);
+//        closeSearchers(mySearchers);
 
         return retval;
     }
@@ -231,9 +231,9 @@ public class LucenePlugin extends XWikiDefaultPlugin implements XWikiPluginInter
     public SearchResults getSearchResultsFromIndexes(String query, String sortField,
         String myIndexDirs, String languages, XWikiContext context) throws Exception
     {
-        Searcher[] mySearchers = createSearchers(myIndexDirs);
+        IndexSearcher[] mySearchers = createSearchers(myIndexDirs);
         SearchResults retval = search(query, sortField, null, languages, mySearchers, context);
-        closeSearchers(mySearchers);
+//        closeSearchers(mySearchers);
 
         return retval;
     }
@@ -303,8 +303,8 @@ System.out.println("****EM: LucenePlugin.getSearchResults: query: "+query+", sor
      * @throws ParseException If the query is not valid.
      */
     private SearchResults search(String query, String sortField, String virtualWikiNames,
-        String languages, Searcher[] indexes, XWikiContext context) throws IOException,
-        ParseException
+        String languages, IndexSearcher[] indexes, XWikiContext context) throws IOException,
+        org.apache.lucene.queryparser.classic.ParseException
     {
         SortField sort = getSortField(sortField);
         // Perform the actual search
@@ -330,8 +330,8 @@ System.out.println("****EM: LucenePlugin.getSearchResults: query: "+query+", sor
      * @throws ParseException If the query is not valid.
      */
     private SearchResults search(String query, String[] sortFields, String virtualWikiNames,
-        String languages, Searcher[] indexes, XWikiContext context) throws IOException,
-        ParseException
+        String languages, IndexSearcher[] indexes, XWikiContext context) throws IOException,
+        org.apache.lucene.queryparser.classic.ParseException
     {
         // Turn the sorting field names into SortField objects.
         SortField[] sorts = null;
@@ -369,21 +369,29 @@ System.out.println("****EM: LucenePlugin.getSearchResults: query: "+query+", sor
      * @throws ParseException If the query is not valid.
      */
     private SearchResults search(String query, Sort sort, String virtualWikiNames,
-        String languages, Searcher[] indexes, XWikiContext context) throws IOException,
-        ParseException
+        String languages, IndexSearcher[] indexes, XWikiContext context) throws IOException,
+        org.apache.lucene.queryparser.classic.ParseException
     {
-        MultiSearcher searcher = new MultiSearcher(indexes);
+//        MultiSearcher searcher = new MultiSearcher(indexes);
+    	IndexReader[] readers = new IndexReader[indexes.length];
+    	for (int i = 0; i < readers.length; i++)
+		{
+			readers[i] = indexes[i].getIndexReader();
+		}
+    	
+        IndexSearcher searcher = new IndexSearcher(new MultiReader(readers));
         // Enhance the base query with wiki names and languages.
         Query q = buildQuery(query, virtualWikiNames, languages);
 System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNames: "+virtualWikiNames+" ,languages: "+languages);        
         // Perform the actual search
-        Hits hits = (sort == null) ? searcher.search(q) : searcher.search(q, sort);
-        final int hitcount = hits.length();
+        TopDocs hits = (sort == null) ? searcher.search(q, 5) : searcher.search(q, 5, sort);
+        final int hitcount = hits.totalHits;
         if (LOG.isDebugEnabled()) {
             LOG.debug("query " + q + " returned " + hitcount + " hits");
         }
         // Transform the raw Lucene search results into XWiki-aware results
-        return new SearchResults(hits,
+        
+        return new SearchResults(TopScoreDocCollector.create(5, true), searcher,
             new com.xpn.xwiki.api.XWiki(context.getWiki(), context),
             context);
     }
@@ -402,9 +410,9 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
         SortField sort = null;
         if (!StringUtils.isEmpty(sortField)) {
             if (sortField.startsWith("-")) {
-                sort = new SortField(sortField.substring(1), true);
+                sort = new SortField(sortField.substring(1), SortField.Type.STRING, true);
             } else {
-                sort = new SortField(sortField);
+                sort = new SortField(sortField, SortField.Type.STRING);
             }
         }
         return sort;
@@ -417,7 +425,7 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
      *            all languages
      */
     private Query buildQuery(String query, String virtualWikiNames, String languages)
-        throws ParseException
+        throws org.apache.lucene.queryparser.classic.ParseException
     {
         // build a query like this: <user query string> AND <wikiNamesQuery> AND
         // <languageQuery>
@@ -428,7 +436,7 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
         if (query.startsWith("PROP ")) {
             String property = query.substring(0, query.indexOf(":"));
             query = query.substring(query.indexOf(":") + 1, query.length());
-            QueryParser qp = new QueryParser(property, analyzer);
+            QueryParser qp = new QueryParser(Version.LUCENE_40, property, analyzer);
             parsedQuery = qp.parse(query);
             bQuery.add(parsedQuery, BooleanClause.Occur.MUST);
         } else if (query.startsWith("MULTI ")) {
@@ -439,11 +447,10 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
             for (int i = 0; i < flags.length; i++) {
                 flags[i] = BooleanClause.Occur.SHOULD;
             }
-            parsedQuery = MultiFieldQueryParser.parse(query, fields, flags, analyzer);
+            parsedQuery = MultiFieldQueryParser.parse(Version.LUCENE_40, query, fields, flags, analyzer);
             bQuery.add(parsedQuery, BooleanClause.Occur.MUST);
         } else {
-//            QueryParser qp = new QueryParser("ft", analyzer);
-            QueryParser qp = new QueryParser(org.apache.lucene.util.Version.LUCENE_29,"ft", analyzer);
+            QueryParser qp = new QueryParser(Version.LUCENE_40, "ft", analyzer);
             parsedQuery = qp.parse(query);
             bQuery.add(parsedQuery, BooleanClause.Occur.MUST);
         }
@@ -481,7 +488,8 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
         return new TermQuery(new Term(fieldname, valueArray[0]));
     }
 
-    public synchronized void init(XWikiContext context)
+    @SuppressWarnings("unchecked")
+	public synchronized void init(XWikiContext context)
     {
         super.init(context);
         if (LOG.isDebugEnabled()) {
@@ -489,14 +497,16 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
         }
         config = context.getWiki().getConfig();
         try {
-            analyzer =
-                (Analyzer) Class.forName(config.getProperty(PROP_ANALYZER, DEFAULT_ANALYZER))
-                    .newInstance();
+            Class<Analyzer> analyzerClass = (Class<Analyzer>) Class.forName(config.getProperty(PROP_ANALYZER, DEFAULT_ANALYZER));
+            Constructor<Analyzer> constructor = analyzerClass.getConstructor(Version.class);
+            analyzer = constructor.newInstance(Version.LUCENE_40);
         } catch (Exception e) {
             LOG.error("error instantiating analyzer : ", e);
             LOG.warn("using default analyzer class: " + DEFAULT_ANALYZER);
             try {
-                analyzer = (Analyzer) Class.forName(DEFAULT_ANALYZER).newInstance();
+                Class<Analyzer> analyzerClass = (Class<Analyzer>) Class.forName(DEFAULT_ANALYZER);
+                Constructor<Analyzer> constructor = analyzerClass.getConstructor(Version.class);
+                analyzer = constructor.newInstance(Version.LUCENE_40);
             } catch (Exception e1) {
                 throw new RuntimeException("instantiation of default analyzer "
                     + DEFAULT_ANALYZER + " failed", e1);
@@ -509,7 +519,13 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
         }
         indexUpdater = new IndexUpdater();
         indexUpdater.setAnalyzer(analyzer);
-        indexUpdater.init(config, this, context);
+        try
+		{
+			indexUpdater.init(config, this, context);
+		} catch (IOException e)
+		{
+			LOG.fatal(e.getMessage());
+		}
         indexUpdaterThread = new Thread(indexUpdater, "Lucene Index Updater");
         indexUpdaterThread.start();
         indexRebuilder = new IndexRebuilder(indexUpdater, context);
@@ -533,11 +549,11 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
 
         indexUpdaterThread.stop();
 
-        try {
-            closeSearchers(this.searchers);
-        } catch (IOException e) {
-            LOG.warn("cannot close searchers");
-        }
+//        try {
+//            closeSearchers(this.searchers);
+//        } catch (IOException e) {
+//            LOG.warn("cannot close searchers");
+//        }
         indexUpdater = null;
         analyzer = null;
 
@@ -560,25 +576,31 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
      * @param indexDirs Comma separated list of Lucene index directories to create searchers for.
      * @return Array of searchers
      */
-    public Searcher[] createSearchers(String indexDirs) throws Exception
+    public IndexSearcher[] createSearchers(String indexDirs) throws Exception
     {
-        String[] dirs = StringUtils.split(indexDirs, ",");
+        String[] dirPaths = StringUtils.split(indexDirs, ",");
+        NIOFSDirectory[] dirs = new NIOFSDirectory[dirPaths.length];
+        for (int i = 0; i < dirPaths.length; i++)
+		{
+			dirs[i] = new NIOFSDirectory(new File(dirPaths[i]));
+		}
         List<IndexSearcher> searchersList = new ArrayList<IndexSearcher>();
         for (int i = 0; i < dirs.length; i++) {
             try {
-                if (!IndexReader.indexExists(dirs[i])) {
+                if (!DirectoryReader.indexExists(dirs[i])) {
                     // If there's no index there, create an empty one; otherwise the reader
                     // constructor will throw an exception and fail to initialize
-                    new IndexWriter(dirs[i], analyzer).close();
+                	IndexWriterConfig conf = new IndexWriterConfig(Version.LUCENE_40, analyzer);
+                    new IndexWriter(dirs[i], conf).close();
                 }
-                IndexReader reader = IndexReader.open(dirs[i]);
+                DirectoryReader reader = DirectoryReader.open(dirs[i]);
                 searchersList.add(new IndexSearcher(reader));
             } catch (IOException e) {
                 LOG.error("cannot open index " + dirs[i], e);
             }
         }
 
-        return searchersList.toArray(new Searcher[searchersList.size()]);
+        return searchersList.toArray(new IndexSearcher[searchersList.size()]);
     }
 
     /**
@@ -587,7 +609,7 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
     protected synchronized void openSearchers()
     {
         try {
-            closeSearchers(this.searchers);
+//            closeSearchers(this.searchers);
             this.searchers = createSearchers(indexDirs);
         } catch (Exception e1) {
             LOG.error("error opening searchers for index dirs "
@@ -599,16 +621,17 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
 
     /**
      * @throws IOException
+     * @Deprecated see http://lucene.472066.n3.nabble.com/IndexSearcher-close-removed-in-4-0-td4041177.html
      */
-    protected static void closeSearchers(Searcher[] searchers) throws IOException
+    protected static void closeSearchers(IndexSearcher[] searchers) throws IOException
     {
-        if (searchers != null) {
-            for (int i = 0; i < searchers.length; i++) {
-                if (searchers[i] != null) {
-                    searchers[i].close();
-                }
-            }
-        }
+//        if (searchers != null) {
+//            for (int i = 0; i < searchers.length; i++) {
+//                if (searchers[i] != null) {
+//                    searchers[i].close();
+//                }
+//            }
+//        }
     }
 
     public String getIndexDirs()

@@ -32,24 +32,23 @@ import java.io.StringReader;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.Vector;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
-import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.de.GermanAnalyzer;
+import org.apache.lucene.analysis.de.CSWGermanAnalyzer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
+import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.jfree.util.Log;
 
 import de.csw.lucene.ConceptFilter;
 import de.csw.util.Config;
+import de.csw.util.Token;
 
 /**
  * Uses background knowledge to enhance the text.
@@ -77,7 +76,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	 * system. The search terms are related to the annotated phrase.
 	 */
 	public String enhance(String text) {
-		GermanAnalyzer ga = new GermanAnalyzer();
+		CSWGermanAnalyzer ga = new CSWGermanAnalyzer();
 		TokenStream ts = null;
 		StringBuilder result = new StringBuilder();
 		
@@ -85,27 +84,36 @@ public class XWikiTextEnhancer implements TextEnhancer {
 System.out.println("****EM: XWikiTextEnhancer.enhance, text to enhance: "+ text);		
 		try {
 			Reader r = new BufferedReader(new StringReader(text));
-			ts = ga.reusableTokenStream("", r);
 			
-			Token token = ts.next();
-			int lastEndIndex = 0;
-
+			ts = ga.tokenStream("",	 r);
+			
+			CharTermAttribute charTermAttribute;
+			OffsetAttribute offsetAttribute;
+			TypeAttribute typeAttribute;
+			
 			String term;
-			while (token != null) {
-				result.append(text.substring(lastEndIndex, token.startOffset()));
-				term = String.copyValueOf(token.termBuffer(), 0, token.termLength());
-System.out.println("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\ntoken.startOffset(): "+token.startOffset()+ "\ntoken.termLength(): "+token.termLength()+"\ntoken.termBuffer(): "+ new String(token.termBuffer())+ "\nToken.term: "+token.term()+ "\nToken.type: "+token.type());		
+			int lastEndIndex = 0;
+			
+			while(ts.incrementToken()) {
+			
+				charTermAttribute = ts.addAttribute(CharTermAttribute.class);
+				offsetAttribute = ts.addAttribute(OffsetAttribute.class);
+				typeAttribute = ts.addAttribute(TypeAttribute.class);
+					
+				result.append(text.substring(lastEndIndex, offsetAttribute.startOffset()));
+				term = String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length());
+System.out.println("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\nstartOffset(): "+ offsetAttribute.startOffset() 
+             + "\nendOffset(): "+offsetAttribute.endOffset()+"\ntoken.termBuffer(): "+ new String(charTermAttribute.buffer()) + "\nToken.term: "+charTermAttribute+ "\nToken.type: "+typeAttribute.type());      
 				
-				if (token.type().equals(ConceptFilter.CONCEPT_TYPE) && isAnnotatable(token)) {
+				if (typeAttribute.type().equals(ConceptFilter.CONCEPT_TYPE) && isAnnotatable(offsetAttribute)) {
 					log.debug("Annotating concept: " + term);
 System.out.println("****EM: XWikiTextEnhancer.enhance3, Annotating concept: "+ term);		
-					annotateWithSearch(result, text.substring(token.startOffset(), token.endOffset()));
+					annotateWithSearch(result, text.substring(offsetAttribute.startOffset(), offsetAttribute.endOffset()));
 				} else {
-					result.append(text.substring(token.startOffset(), token.endOffset()));
+					result.append(text.substring(offsetAttribute.startOffset(), offsetAttribute.endOffset()));
 				}
 					
-				lastEndIndex = token.endOffset();
-				token = ts.next();
+				lastEndIndex = offsetAttribute.endOffset();
 			}
 			result.append(text.subSequence(lastEndIndex, text.length()));
 		} catch (IOException e) {
@@ -113,6 +121,7 @@ System.out.println("****EM: XWikiTextEnhancer.enhance3, Annotating concept: "+ t
 		}
 System.out.println("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toString());		
 		
+		ga.close();
 		return result.toString();
 	}
 
@@ -154,8 +163,8 @@ System.out.println("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toStri
 	 *            a token
 	 * @return true iff the token can be annotated
 	 */
-	protected boolean isAnnotatable(Token token) {
-		int tokenStart = token.startOffset();
+	protected boolean isAnnotatable(OffsetAttribute offsetAttribute) {
+		int tokenStart = offsetAttribute.startOffset();
 		Entry<Integer, Integer> floor = linkIndex.floorEntry(tokenStart);
 		
 		return floor == null || (floor.getValue() < tokenStart);

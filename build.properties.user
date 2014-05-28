@@ -2,7 +2,7 @@
 
 version = 1.0
 
-webapp.dir = /media/platte/work/csc/xwiki-enterprise-jetty-hsqldb-2.6.1
+webapp.dir = /media/platte/work/csc/xwiki-enterprise-jetty-hsqldb-5.4.4
 webapp.xwiki.dir = ${webapp.dir}/webapps/xwiki
 
 build.dir = ${basedir}/build
