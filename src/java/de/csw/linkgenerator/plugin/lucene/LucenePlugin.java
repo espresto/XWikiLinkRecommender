@@ -44,12 +44,14 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.TopDocsCollector;
+import org.apache.lucene.search.TopFieldCollector;
 import org.apache.lucene.search.TopScoreDocCollector;
-import org.apache.lucene.search.TotalHitCountCollector;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.util.Version;
 
@@ -64,6 +66,7 @@ import com.xpn.xwiki.notify.XWikiActionRule;
 import com.xpn.xwiki.plugin.XWikiDefaultPlugin;
 import com.xpn.xwiki.plugin.XWikiPluginInterface;
 
+import de.csw.util.Config;
 
 /**
  * A plugin offering support for advanced searches using Lucene, a high performance, open source
@@ -92,6 +95,9 @@ public class LucenePlugin extends XWikiDefaultPlugin implements XWikiPluginInter
 
     private static final String DEFAULT_ANALYZER =
         "org.apache.lucene.analysis.standard.StandardAnalyzer";
+    
+    private static final int MAX_RESULTS = Config.getIntAppProperty(Config.LUCENE_EDITPROPRESULTS);
+
 
     private static final Log LOG = LogFactory.getLog(LucenePlugin.class);
 
@@ -382,16 +388,20 @@ System.out.println("****EM: LucenePlugin.getSearchResults: query: "+query+", sor
         IndexSearcher searcher = new IndexSearcher(new MultiReader(readers));
         // Enhance the base query with wiki names and languages.
         Query q = buildQuery(query, virtualWikiNames, languages);
-System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNames: "+virtualWikiNames+" ,languages: "+languages);        
-        // Perform the actual search
-        TopDocs hits = (sort == null) ? searcher.search(q, 5) : searcher.search(q, 5, sort);
-        final int hitcount = hits.totalHits;
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("query " + q + " returned " + hitcount + " hits");
+		System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNames: "+virtualWikiNames+" ,languages: "+languages);
+
+        TopDocsCollector< ? extends ScoreDoc> topDocs;
+        if (sort != null) {
+            topDocs = TopFieldCollector.create(sort, MAX_RESULTS, true, true, false, false);
+        } else {
+            topDocs = TopScoreDocCollector.create(MAX_RESULTS, false);
         }
-        // Transform the raw Lucene search results into XWiki-aware results
         
-        return new SearchResults(TopScoreDocCollector.create(5, true), searcher,
+        // Perform the actual search
+        searcher.search(q, topDocs);
+        
+        // Transform the raw Lucene search results into XWiki-aware results
+        return new SearchResults(topDocs, searcher,
             new com.xpn.xwiki.api.XWiki(context.getWiki(), context),
             context);
     }

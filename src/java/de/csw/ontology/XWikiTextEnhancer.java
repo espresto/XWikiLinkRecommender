@@ -49,6 +49,7 @@ import org.jfree.util.Log;
 import de.csw.lucene.ConceptFilter;
 import de.csw.util.Config;
 import de.csw.util.Token;
+import de.csw.util.URLEncoder;
 
 /**
  * Uses background knowledge to enhance the text.
@@ -140,7 +141,7 @@ System.out.println("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toStri
 
 		if (text.isEmpty()) return;
 		
-		Pattern pattern = Pattern.compile("\\[[^\\]]*\\]");
+		Pattern pattern = Pattern.compile("\\[\\[[^\\]]*\\]\\]");
 		Matcher matcher = pattern.matcher(text);
 		
 		while (matcher.find()) {
@@ -176,60 +177,27 @@ System.out.println("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toStri
 	 * 
 	 * @param term
 	 *            a term
-	 * @return annotated term
+	 * @param sb 
+	 *            the string builder the result is appended to
 	 */
-	protected String annotateWithSearch(StringBuilder sb, String term) {
+	protected void annotateWithSearch(StringBuilder sb, String term) {
 		List<String> matches = index.getSimilarMatchLabels(term, MAX_SIMILAR_CONCEPTS);
 
 		if (matches.isEmpty())
-			return term;
-System.out.println("****EM: XWikiTextEnhancer.annotateWithSearch1, Anzahl similar matches aus Ontologie: "+ matches.size()+ ", vom term: "+ term);		
-		
-//		sb.append("<a class=\"similarconcept\" title=\"Suche nach den verwandten Begriffen: ");
-        sb.append("[["+term + ">>");   //EM: Wiki2 markup link    ** added
+			return;
+
+		sb.append("[[").append(term);
+		sb.append(">>url:").append(getSearchURL(matches));
+		sb.append("||class=\"similarconcept\"");
 		Iterator<String> it = matches.listIterator(1);
-/*		sb.append(it.next());
+		sb.append(" title=\"Suche nach den verwandten Begriffen: ").append(it.next());
 		while (it.hasNext()) {
-			sb.append(", " + it.next());
+			sb.append(", ").append(it.next());
 		}
-		sb.append("\" href=\"" + getSearchURL(matches) + "\">");
-		sb.append(term);
-		sb.append("</a>");
-*/
-		sb.append(getSearchURL(matches));   
-        sb.append("||title= \"Suche nach den verwandten Begriffen: ");  //EM: Wiki2 markup link: add attributes (parameter 
-        sb.append(it.next());
-		while (it.hasNext()) {
-			sb.append(", " + it.next());
-		}
-        sb.append("\" class=\"similarconcept\"");
-        sb.append("]]");  // EM: Wiki2 markup link    ** added end
-log.debug(sb.toString());		
-System.out.println("****EM: XWikiTextEnhancer.annotateWithSearch4,fertiger link: "+ sb.toString());		
-		return sb.toString();
-	}
-
-	/* ****** original methode ******************
-	protected String annotateWithSearch(StringBuilder sb, String term) {
-		List<String> matches = index.getSimilarMatchLabels(term, MAX_SIMILAR_CONCEPTS);
-
-		if (matches.isEmpty())
-			return term;
+		sb.append("\"]]");
 		
-		sb.append("<a class=\"similarconcept\" title=\"Suche nach den verwandten Begriffen: ");
-		Iterator<String> it = matches.listIterator(1);
-		sb.append(it.next());
-		while (it.hasNext()) {
-			sb.append(", " + it.next());
-		}
-		sb.append("\" href=\"" + getSearchURL(matches) + "\">");
-		sb.append(term);
-		sb.append("</a>");
-
-		return sb.toString();
+		return;
 	}
-
-*****************ende original methode***********************/	
 	
 	/**
 	 * Creates a link to the search wiki page.
@@ -241,6 +209,6 @@ System.out.println("****EM: XWikiTextEnhancer.annotateWithSearch4,fertiger link:
 	protected String getSearchURL(Collection<String> terms) {
 		log.debug("** search terms: " + terms);
 System.out.println("****EM: XWikiTextEnhancer.getSearchURL, href-search terms: "+ terms);		
-		return LUCENE_URL + "?text=" + StringUtils.join(terms, '+');
+		return LUCENE_URL + "?text=" + URLEncoder.encode(StringUtils.join(terms, ' '));
 	}
 }

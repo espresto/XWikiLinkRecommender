@@ -6,7 +6,6 @@ package de.csw.linkgenerator.struts;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Iterator;
-import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -19,6 +18,7 @@ import com.xpn.xwiki.web.XWikiRequest;
 import de.csw.linkgenerator.plugin.lucene.LucenePluginApi;
 import de.csw.linkgenerator.plugin.lucene.SearchResult;
 import de.csw.linkgenerator.plugin.lucene.SearchResults;
+import de.csw.util.URLEncoder;
 
 /**
  * @author ralph
@@ -57,10 +57,10 @@ public class CSWLinkAction extends XWikiAction {
 		if (results.hasNext()) {
 			for (;;) {
 				SearchResult searchResult = results.next();
-				out.write(searchResult.getSpace());
 LOG.debug("***EM: CWSLinkAction.action searchResult.Space/Name, score: "+ searchResult.getSpace()+"/"+searchResult.getName()+", score: "+ searchResult.getScore());				
+				out.write(URLEncoder.encode(searchResult.getSpace()));
 				out.write('/');
-				out.write(searchResult.getName());
+				out.write(URLEncoder.encode(searchResult.getName()));
 				if (results.hasNext()) {
 					out.write('\n');
 				} else {
