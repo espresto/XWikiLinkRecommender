@@ -458,7 +458,7 @@ log.debug("label: "+label);
 				}
 			}
 		}
-		addIndividulasToIndex();    //EM: add Individual label
+		addIndividualsToIndex();    //EM: add Individual label
 		log.debug("done");
 
 	}
@@ -468,7 +468,7 @@ log.debug("label: "+label);
 	 * Adds a new entry to all indexes, e.g., label index, prefix index. The
 	 * labels are retrieved from the Individuals.
 	 */
-	protected void addIndividulasToIndex() {
+	protected void addIndividualsToIndex() {
 		log.debug("add Individuals-label to index");
 		if (model.size() == 0)
 			return;
@@ -482,9 +482,10 @@ log.debug("label: "+label);
 			log.debug("****** Individual.localName: "+ ind.getLocalName()+ ", with label: "+OntologyUtils.getLabelsIndividual(ind)+ ", from class: "+ind.getOntClass().getLocalName());
 			List<String> labels = OntologyUtils.getLabelsIndividual(ind);
 			for (String label : labels) {
-log.debug("indiv_label: "+label);					
-				addToLabelIndex(stemmer.stem(label), ind.getOntClass());
-				addToPrefixIndex(label);
+				if (label != null) {
+					addToLabelIndex(stemmer.stem(label), ind.getOntClass());
+					addToPrefixIndex(label);
+				}
 			}
 		}
 	}
