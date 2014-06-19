@@ -485,7 +485,7 @@ log.debug("label: "+label);
 				}
 			}
 		}
-		addIndividulasToIndex();    //EM: add Individual label
+		addIndividualsToIndex();    //EM: add Individual label
 		log.debug("done");
 log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());		
 
@@ -496,7 +496,7 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	 * Adds a new entry to all indexes, e.g., label index, prefix index. The
 	 * labels are retrieved from the Individuals.
 	 */
-	protected void addIndividulasToIndex() {
+	protected void addIndividualsToIndex() {
 		log.debug("add Individuals-label to index");
 		if (model.size() == 0)
 			return;
