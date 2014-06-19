@@ -57,6 +57,8 @@ import com.xpn.xwiki.notify.DocChangeRule;
 import com.xpn.xwiki.notify.XWikiActionRule;
 import com.xpn.xwiki.plugin.XWikiDefaultPlugin;
 import com.xpn.xwiki.plugin.XWikiPluginInterface;
+import com.xpn.xwiki.user.api.XWikiUser;
+
 import de.csw.linkgenerator.plugin.lucene.IndexFields;
 import de.csw.linkgenerator.plugin.lucene.IndexRebuilder;
 import de.csw.linkgenerator.plugin.lucene.IndexUpdater;
@@ -259,7 +261,7 @@ public class LucenePlugin extends XWikiDefaultPlugin implements XWikiPluginInter
     {
         // TODO Why is this here? This is slow, as it closes and opens indexes for each query.
         // openSearchers();
-System.out.println("****EM: LucenePlugin.getSearchResults: query: "+query+", sortField: "+ sortField+" ,virtualWikiNames: "+virtualWikiNames+", languages: "+languages);    	
+LOG.debug("****EM: LucenePlugin.getSearchResults: query: "+query+", sortField: "+ sortField+" ,virtualWikiNames: "+virtualWikiNames+", languages: "+languages);    	
         return search(query, sortField, virtualWikiNames, languages, this.searchers, context);
     }
 
@@ -375,13 +377,18 @@ System.out.println("****EM: LucenePlugin.getSearchResults: query: "+query+", sor
         MultiSearcher searcher = new MultiSearcher(indexes);
         // Enhance the base query with wiki names and languages.
         Query q = buildQuery(query, virtualWikiNames, languages);
-System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNames: "+virtualWikiNames+" ,languages: "+languages);        
+LOG.debug("**** EM: LucenePlugin.search query: "+query+", virtualWikiNames: "+virtualWikiNames+" ,languages: "+languages);        
         // Perform the actual search
         Hits hits = (sort == null) ? searcher.search(q) : searcher.search(q, sort);
         final int hitcount = hits.length();
         if (LOG.isDebugEnabled()) {
-            LOG.debug("query " + q + " returned " + hitcount + " hits");
+            LOG.debug("query: " + q + " returned " + hitcount + " hits");
         }
+//EM: insert for test
+for(int i = 0; i < hitcount; i++) {
+        LOG.debug(" ********EM: hits: "+ hits.doc(i).toString());
+}
+// end insert
         // Transform the raw Lucene search results into XWiki-aware results
         return new SearchResults(hits,
             new com.xpn.xwiki.api.XWiki(context.getWiki(), context),
@@ -423,7 +430,7 @@ System.out.println("**** EM: LucenePlugin.search query: "+query+", virtualWikiNa
         // <languageQuery>
         BooleanQuery bQuery = new BooleanQuery();
         Query parsedQuery = null;
-
+LOG.debug(" ***************EM: buildQuery, query: "+ query+", virtualWikiNames: "+ virtualWikiNames+ ", languages:"+languages);
         // for object search
         if (query.startsWith("PROP ")) {
             String property = query.substring(0, query.indexOf(":"));

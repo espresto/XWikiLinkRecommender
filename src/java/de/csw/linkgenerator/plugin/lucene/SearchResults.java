@@ -74,6 +74,7 @@ public class SearchResults extends Api
                 for (int i = 0; i < hitcount; i++) {
                     SearchResult result = null;
                     try {
+LOG.debug("********EM: SearchResult (hitcount > 0), hit("+i+"): "+ hits.doc(i).toString());                    	
                         result = new SearchResult(hits.doc(i), hits.score(i), xwiki);
 
                         this.context.setDatabase(result.getWiki());
@@ -83,8 +84,12 @@ public class SearchResults extends Api
                             pageName =
                                 result.getWiki() + ":" + result.getWeb() + "." + result.getName();
                         }
+LOG.debug("*********** EM: pageName = "+ pageName);
+boolean checkAccess = xwiki.checkAccess(pageName, "view");    // EM: temporary included
+LOG.debug("******* EM: check Result!=null: result:"+ (result != null)+ ", isWikiContent: "+ result.isWikiContent()+ ", checkAccess: "+ checkAccess+ ", pageExist: "+ xwiki.exists(pageName) );
                         if (result != null && result.isWikiContent()
                             && xwiki.checkAccess(pageName, "view") && xwiki.exists(pageName)) {
+LOG.debug("*********** EM: relevantResults = "+ result.getTitle());                        	
                             relevantResults.add(result);
                         }
                     } catch (Exception e) {

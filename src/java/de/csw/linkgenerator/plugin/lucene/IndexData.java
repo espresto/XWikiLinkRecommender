@@ -177,8 +177,9 @@ public abstract class IndexData
         try {
             final String ft = getRelevantData(doc, context);
             if (ft != null) {
+LOG.debug("!!!!!!!!!!!!!!!! EM: following data are added to luceneDoc for document: "+ doc.getTitle()+ "  in FullText (ft:) field: "+ ft);            	
                 luceneDoc.add(new Field(IndexFields.FULLTEXT,
-                    ft,
+                	ft,
                     Field.Store.NO,
                     Field.Index.TOKENIZED));
             }

@@ -26,6 +26,7 @@
 package de.csw.xwiki.plugin;
 
 import org.apache.log4j.Logger;
+import org.jfree.util.Log;
 
 import virtuoso.jena.driver.VirtDataset;
 import virtuoso.jena.driver.VirtGraph;
@@ -41,6 +42,7 @@ import com.xpn.xwiki.notify.XWikiNotificationManager;
 import com.xpn.xwiki.notify.XWikiNotificationRule;
 import com.xpn.xwiki.plugin.XWikiDefaultPlugin;
 import com.xpn.xwiki.plugin.XWikiPluginInterface;
+import com.xpn.xwiki.user.api.XWikiUser;
 
 import de.csw.ontology.OntologyIndex;
 import de.csw.util.Config;
@@ -54,6 +56,7 @@ public class OntologyPlugin extends XWikiDefaultPlugin {
 
 	/** if enabled == false no text enhancement is performed */
 	boolean enabled = true;
+
 	
 	public OntologyPlugin(String name, String className, XWikiContext context) {
 		super(name, className, context);
@@ -73,8 +76,7 @@ public class OntologyPlugin extends XWikiDefaultPlugin {
 
 		// load the ontology  (Config.getAppProperty(Config.ONTOLOGY_SOURCE)!=null) && 
 		if(Config.getAppProperty(Config.ONTOLOGY_SOURCE).equals("virtuoso")){ 
-			log.debug("Loading ontology from virtuoso");
-			OntologyIndex.get().load(readModel());			
+			updateOntIndex();		
 		}
 		else{
 			log.debug("Loading ontology from file " + Config.getAppProperty(Config.ONTOLOGY_FILE));
@@ -84,11 +86,11 @@ public class OntologyPlugin extends XWikiDefaultPlugin {
 		log.debug("** " + OntologyIndex.get().getModel().size() + " statements loaded.");
 		
 		XWikiNotificationManager notificationManager = context.getWiki().getNotificationManager();
-		
+
 		XWikiNotificationRule rule = new OntologyNotificationRule(this);
 		notificationManager.addGeneralRule(rule);
 	}
-
+	
 /* get the Ont Model from virtuoso */	
     public OntModel readModel() {
         VirtDataset dataSet = openDataset();
@@ -106,7 +108,15 @@ public class OntologyPlugin extends XWikiDefaultPlugin {
         					   Config.getAppProperty(Config.VIRTUOSO_PW));
     }
 	
-	
+/* 
+ * update Ontology-Indexes
+ * read Ontology from Virtuoso DB and update the model and the Indexes     
+ */
+    public void updateOntIndex(){
+		log.debug("Loading ontology from virtuoso");
+		OntologyIndex.get().load(readModel());
+    }
+    
 /* end read ontology from virtuoso ************************/
     
 	@Override

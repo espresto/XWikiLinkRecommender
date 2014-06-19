@@ -80,9 +80,13 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		GermanAnalyzer ga = new GermanAnalyzer();
 		TokenStream ts = null;
 		StringBuilder result = new StringBuilder();
-		
+// EM: Fehler bei velocity files: wenn z.B. date in der Ontologie ist => velocity files mit doc.date gehen kaputt		
+		if (text.indexOf("{{velocity}}")>=0){    // skip velocity templates !!
+			return text;
+		}
+// ende		
 		initializeLinkIndex(text);
-System.out.println("****EM: XWikiTextEnhancer.enhance, text to enhance: "+ text);		
+log.debug("****EM: XWikiTextEnhancer.enhance, text to enhance: "+ text);		
 		try {
 			Reader r = new BufferedReader(new StringReader(text));
 			ts = ga.reusableTokenStream("", r);
@@ -94,11 +98,11 @@ System.out.println("****EM: XWikiTextEnhancer.enhance, text to enhance: "+ text)
 			while (token != null) {
 				result.append(text.substring(lastEndIndex, token.startOffset()));
 				term = String.copyValueOf(token.termBuffer(), 0, token.termLength());
-System.out.println("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\ntoken.startOffset(): "+token.startOffset()+ "\ntoken.termLength(): "+token.termLength()+"\ntoken.termBuffer(): "+ new String(token.termBuffer())+ "\nToken.term: "+token.term()+ "\nToken.type: "+token.type());		
+log.debug("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\ntoken.startOffset(): "+token.startOffset()+ "\ntoken.termLength(): "+token.termLength()+"\ntoken.termBuffer(): "+ new String(token.termBuffer())+ "\nToken.term: "+token.term()+ "\nToken.type: "+token.type());		
 				
 				if (token.type().equals(ConceptFilter.CONCEPT_TYPE) && isAnnotatable(token)) {
 					log.debug("Annotating concept: " + term);
-System.out.println("****EM: XWikiTextEnhancer.enhance3, Annotating concept: "+ term);		
+log.debug("****EM: XWikiTextEnhancer.enhance3, Annotating concept: "+ term);		
 					annotateWithSearch(result, text.substring(token.startOffset(), token.endOffset()));
 				} else {
 					result.append(text.substring(token.startOffset(), token.endOffset()));
@@ -111,7 +115,7 @@ System.out.println("****EM: XWikiTextEnhancer.enhance3, Annotating concept: "+ t
 		} catch (IOException e) {
 			Log.error("Error while processing the page content", e);
 		}
-System.out.println("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toString());		
+log.debug("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toString());		
 		
 		return result.toString();
 	}
@@ -174,11 +178,12 @@ System.out.println("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toStri
 
 		if (matches.isEmpty())
 			return term;
-System.out.println("****EM: XWikiTextEnhancer.annotateWithSearch1, Anzahl similar matches aus Ontologie: "+ matches.size()+ ", vom term: "+ term);		
+log.debug("****EM: XWikiTextEnhancer.annotateWithSearch1, Anzahl similar matches aus Ontologie: "+ matches.size()+ ", vom term: "+ term);		
 		
 //		sb.append("<a class=\"similarconcept\" title=\"Suche nach den verwandten Begriffen: ");
         sb.append("[["+term + ">>");   //EM: Wiki2 markup link    ** added
-		Iterator<String> it = matches.listIterator(1);
+//		Iterator<String> it = matches.listIterator(1);  // das erste Element wird übersprungen?
+		Iterator<String> it = matches.listIterator(0);
 /*		sb.append(it.next());
 		while (it.hasNext()) {
 			sb.append(", " + it.next());
@@ -196,7 +201,7 @@ System.out.println("****EM: XWikiTextEnhancer.annotateWithSearch1, Anzahl simila
         sb.append("\" class=\"similarconcept\"");
         sb.append("]]");  // EM: Wiki2 markup link    ** added end
 log.debug(sb.toString());		
-System.out.println("****EM: XWikiTextEnhancer.annotateWithSearch4,fertiger link: "+ sb.toString());		
+log.debug("****EM: XWikiTextEnhancer.annotateWithSearch4,fertiger link: "+ sb.toString());		
 		return sb.toString();
 	}
 
@@ -231,7 +236,7 @@ System.out.println("****EM: XWikiTextEnhancer.annotateWithSearch4,fertiger link:
 	 */
 	protected String getSearchURL(Collection<String> terms) {
 		log.debug("** search terms: " + terms);
-System.out.println("****EM: XWikiTextEnhancer.getSearchURL, href-search terms: "+ terms);		
+log.debug("****EM: XWikiTextEnhancer.getSearchURL, href-search terms: "+ terms);		
 		return LUCENE_URL + "?text=" + StringUtils.join(terms, '+');
 	}
 }

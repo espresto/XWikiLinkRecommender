@@ -107,9 +107,12 @@ public final class ConceptFilter extends TokenFilter {
 		while (index.isPrefix(terms)) {
 			tmpToken = input.next();
 			// TODO maybe we spoil buffer space using termLength(); is endOffset the right one?
+		
+// EM:  NPE for tmpToken.termLength()       	
 			bufferSize += tmpToken.termLength() + 1;
 			queue.add(tmpToken);
 			terms.add(String.copyValueOf(tmpToken.termBuffer(), 0, tmpToken.termLength()));
+			
 		}
 		
 		if (index.hasExactMatches(StringUtils.join(terms.toArray(), ' '))) {

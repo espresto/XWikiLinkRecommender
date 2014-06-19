@@ -48,6 +48,8 @@ import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.notify.XWikiActionNotificationInterface;
 import com.xpn.xwiki.notify.XWikiDocChangeNotificationInterface;
 import com.xpn.xwiki.notify.XWikiNotificationRule;
+import com.xpn.xwiki.user.api.XWikiUser;
+
 import de.csw.linkgenerator.plugin.lucene.AbstractXWikiRunnable;
 import de.csw.linkgenerator.plugin.lucene.AttachmentData;
 import de.csw.linkgenerator.plugin.lucene.DocumentData;
@@ -56,6 +58,7 @@ import de.csw.linkgenerator.plugin.lucene.IndexRebuilder;
 import de.csw.linkgenerator.plugin.lucene.LucenePlugin;
 import de.csw.linkgenerator.plugin.lucene.ObjectData;
 import de.csw.linkgenerator.plugin.lucene.XWikiDocumentQueue;
+import de.csw.ontology.OntologyIndex;
 
 /**
  * @version $Id: $
@@ -102,6 +105,11 @@ public class IndexUpdater extends AbstractXWikiRunnable
     static List<String> fields = new ArrayList<String>();
 
     public boolean needInitialBuild = false;
+    
+boolean userIsAdmin = false;   //EM: for test purpose
+
+    
+    
 
     public void doExit()
     {
@@ -137,6 +145,32 @@ public class IndexUpdater extends AbstractXWikiRunnable
     private void runMainLoop()
     {
         while (!this.exit) {
+
+    	//////////////////////////////////////////////////////////////////
+        	//EM: determine user group
+       	XWikiUser xuser = context.getXWikiUser();    	
+        if(xuser!=null){	
+        	LOG.debug("************EM: XWikiUser xuser = "+xuser.getUser());
+        	try{
+        		userIsAdmin = xuser.isUserInGroup("XWiki.XWikiAdminGroup", context);
+        	LOG.debug("????????????????????EM: user ist in AdminGroup: "+userIsAdmin + " ??????????????????????????????????????");
+        	OntologyIndex.get().setAdmin(userIsAdmin);   //EM: zu testzwecken eingefügt. Problem: OntologieIndex ist static => evtl. nur 1. login 
+        	}
+        	catch(Exception e)
+        	{
+        	LOG.error("*EM: Problem to get XWikiAdminGroup:, "+ e.getMessage() );
+        	e.printStackTrace();
+        	}
+        } else{
+        	LOG.debug("************EM: XWikiUser xuser = null !!!!!!!");
+
+        }
+        	//////////////////////////////////////////////////////////////////
+
+        			
+        	
+        	
+        	
             if (this.queue.isEmpty()) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("IndexUpdater: queue empty, nothing to do");
@@ -221,6 +255,7 @@ public class IndexUpdater extends AbstractXWikiRunnable
                         String id = entry.getKey();
                         IndexData data = entry.getValue();
 
+LOG.debug("%%%%%%EM: IndexUpdater: index-key = " + id + ", value.DocumentTitle = "+data.getDocumentTitle());                        
                         try {
                             XWikiDocument doc =
                                 this.xwiki.getDocument(data.getFullName(), context);
@@ -304,6 +339,7 @@ public class IndexUpdater extends AbstractXWikiRunnable
             }
 
             try {
+  LOG.debug("****EM: wird gelöscht: "+ this.reader.document(id).get(IndexFields.DOCUMENT_TITLE));
                 this.reader.deleteDocument(id);
                 nb++;
             } catch (IOException e1) {
@@ -387,13 +423,24 @@ public class IndexUpdater extends AbstractXWikiRunnable
             LOG.debug("addToIndex: " + data);
         }
 
-        org.apache.lucene.document.Document luceneDoc = new org.apache.lucene.document.Document();
+//EM: determine user group
+XWikiUser xuser = context.getXWikiUser();    	
+  	
+if(xuser!=null){	
+LOG.debug("************EM: XWikiUser xuser = "+xuser.getUser());
+} else{
+	LOG.debug("************EM: XWikiUser xuser = null !!!!!!!");
+
+}
+
+		org.apache.lucene.document.Document luceneDoc = new org.apache.lucene.document.Document();
         data.addDataToLuceneDocument(luceneDoc, doc, context);
         Field fld = null;
 
         // collecting all the fields for using up in search
         for (Iterator<Field> it = luceneDoc.getFields().iterator(); it.hasNext();) {
             fld = it.next();
+LOG.debug("????EM: fields from luceneDoc: name: " + fld.name()+ ", value: "+fld.stringValue());   
             if (!fields.contains(fld.name())) {
                 fields.add(fld.name());
             }

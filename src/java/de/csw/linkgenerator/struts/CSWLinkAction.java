@@ -13,12 +13,14 @@ import org.apache.commons.logging.LogFactory;
 
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
+import com.xpn.xwiki.user.api.XWikiUser;
 import com.xpn.xwiki.web.XWikiAction;
 import com.xpn.xwiki.web.XWikiRequest;
 
 import de.csw.linkgenerator.plugin.lucene.LucenePluginApi;
 import de.csw.linkgenerator.plugin.lucene.SearchResult;
 import de.csw.linkgenerator.plugin.lucene.SearchResults;
+import de.csw.ontology.OntologyIndex;
 
 /**
  * @author ralph
@@ -30,6 +32,7 @@ public class CSWLinkAction extends XWikiAction {
 	
 	@Override
 	public boolean action(XWikiContext context) throws XWikiException {
+		
 		XWikiRequest request = context.getRequest();
 		String query = request.get("text");
 		if (query == null) {
@@ -46,10 +49,10 @@ public class CSWLinkAction extends XWikiAction {
 		}
 
 		LucenePluginApi lucene = (LucenePluginApi)context.getWiki().getPluginApi("csw.linkgenerator.lucene", context);
-		System.out.println("***EM: CWSLinkAction.action *********************************");
+LOG.debug("***EM: CWSLinkAction.action *********************************");
 		SearchResults searchResults = lucene.getSearchResults(query, "de, en");
 
-		System.out.println("***EM2: CWSLinkAction.action, query: "+query+", Anzahl Results: "+ searchResults.getHitcount() + "  **************");
+LOG.debug("***EM2: CWSLinkAction.action, query: "+query+", Anzahl Results: "+ searchResults.getHitcount() + "  **************");
 		
 		Iterator<SearchResult> results = searchResults.getResults(1, 10).iterator();
 		
@@ -58,7 +61,7 @@ public class CSWLinkAction extends XWikiAction {
 			for (;;) {
 				SearchResult searchResult = results.next();
 				out.write(searchResult.getSpace());
-LOG.debug("***EM: CWSLinkAction.action searchResult.Space/Name, score: "+ searchResult.getSpace()+"/"+searchResult.getName()+", score: "+ searchResult.getScore());				
+LOG.debug("***EM: CWSLinkAction.action searchResult.Space/Name: "+ searchResult.getSpace()+" / "+searchResult.getName()+", score: "+ searchResult.getScore());				
 				out.write('/');
 				out.write(searchResult.getName());
 				if (results.hasNext()) {

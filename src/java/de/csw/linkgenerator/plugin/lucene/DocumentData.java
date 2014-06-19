@@ -78,7 +78,9 @@ public class DocumentData extends IndexData
     }
     
     public String getRelevantData(XWikiDocument doc, XWikiContext context) {
-        StringBuffer text = new StringBuffer();
+ 
+log.debug("&&&&&&&&&&&&&&& EM: context check, user: " + context.getXWikiUser());   	
+    	StringBuffer text = new StringBuffer();
         text.append(super.getDocumentTitle());
         text.append(" ");
         text.append(extractDocumentSectionTitles(doc));
