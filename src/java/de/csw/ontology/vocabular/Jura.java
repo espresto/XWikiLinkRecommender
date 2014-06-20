@@ -27,29 +27,26 @@ package de.csw.ontology.vocabular;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
 
-public class Jura {
+/** should be no longer used; please use configuration instead */
+class Jura {
 	/** The RDF model that holds the vocabulary terms */
 	private static Model m_model = ModelFactory.createDefaultModel();
 
 	/** The namespace of the vocabulary as a string ({@value}) */
-	public static final String NS = "http://www.ag-csw.de/ontologies/jura#";
+	private static final String NS = "http://www.ag-csw.de/ontologies/jura#";
 
 	/**
 	 * The namespace of the vocabulary as a string
 	 * 
 	 * @see #NS
 	 */
-	public static String getURI() {
+	private static String getURI() {
 		return NS;
 	}
 
 	/** The namespace of the vocabulary as a resource */
-	public static final Resource NAMESPACE = m_model.createResource(NS);
+	private static final Resource NAMESPACE = m_model.createResource(NS);
 
-    // Vocabulary properties
-    ///////////////////////////
-	public static final Property invisible = m_model.createProperty(NS + "invisible");
 }

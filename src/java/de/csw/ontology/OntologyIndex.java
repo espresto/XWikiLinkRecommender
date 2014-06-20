@@ -41,18 +41,16 @@ import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.de.GermanStemmer;
 import org.apache.lucene.analysis.de.Stemmer;
 
-import com.hp.hpl.jena.ontology.Individual;  // EM: incl
-
+import com.hp.hpl.jena.ontology.Individual;
 import com.hp.hpl.jena.ontology.OntClass;
 import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.ontology.OntModelSpec;
-import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.util.iterator.ExtendedIterator;
 
 import de.csw.ontology.util.OntologyUtils;
-import de.csw.ontology.vocabular.Jura;
-import de.csw.xwiki.plugin.OntologyPlugin;
+import de.csw.util.Config;
 
 /**
  * The class encapsulates the access to an ontology.
@@ -87,18 +85,18 @@ public class OntologyIndex {
 	 * instance containing an empty ontology model.
 	 */
 
-// EM: for check the namespace	
-public final String nameSpace_qm ="http://ontologie.datenlabor-berlin.de/CSC/";
-public final String nameSpace_qmt ="http://ontologie.datenlabor-berlin.de/CSC/2014/3/qmt";
+	// EM: for check the namespace	
+	//public final String nameSpace_qm ="http://ontologie.datenlabor-berlin.de/CSC/"; 
+	//public final String nameSpace_qmt ="http://ontologie.datenlabor-berlin.de/CSC/2014/3/qmt";
 
 	private OntologyIndex() {
 //		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM);
-//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);	       funktioniert, equivalentClass nur in eine Richtun
+//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);	       funktioniert, equivalentClass nur in eine Richtung
 //		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_DL_MEM_RDFS_INF);	//RDF RuleReasoner
 //		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_TRANS_INF);	//RDF RuleReasoner
-//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_RULE_INF);	//OWL RuleReasoner - symetric equivalentClass
+//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_RULE_INF);	//OWL RuleReasoner - symmetric equivalentClass
 //		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM_RDFS_INF);	//OWL RuleReasoner - keine equivalentClass
-		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM_RULES_INF);	//OWL Lite RuleReasoner - symetric equivalentClass
+		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM_RULES_INF);	//OWL Lite RuleReasoner - symmetric equivalentClass
 		stemmer = new GermanStemmer();
 	}
 
@@ -148,7 +146,9 @@ public final String nameSpace_qmt ="http://ontologie.datenlabor-berlin.de/CSC/20
 	 */
 	public List<OntClass> getSimilarMatches(String term, int limit) {
 		List<OntClass> classes = getExactMatches(term);
-log.debug("****************** EM: getExactMatches (from LabelIndex) for " + term+ " = "+ OntologyUtils.getLabels(classes));		
+		if (log.isDebugEnabled()) {
+		    log.debug("****************** EM: getExactMatches (from LabelIndex) for " + term + " = " + OntologyUtils.getLabels(classes));
+		}
 		// difference between the limit and the current size of the result
 		int free;
 		
@@ -324,12 +324,12 @@ log.debug("****************** EM: getExactMatches (from LabelIndex) for " + term
 		ExtendedIterator equivIter = clazz.listEquivalentClasses();
 		while(equivIter.hasNext()) {
 			OntClass synonym = (OntClass)equivIter.next();
-			if (!synonym.isAnon() && !synonym.hasLiteral(Jura.invisible, true)) {
+			if (!excludeClass(synonym)) {
 				result.add(synonym);
 			}
 		}
 
-log.debug("*********EM: OntologyIndex.getSynonyms(Synonyme): listEquivalentClasses() für class: "+ clazz.getLocalName() + " = "+ result);		
+		log.debug("*********EM: OntologyIndex.getSynonyms(Synonyme): listEquivalentClasses() für class: "+ clazz.getLocalName() + " = "+ result);		
 		return new ArrayList<OntClass>(result);
 	}
 
@@ -360,15 +360,16 @@ log.debug("*********EM: OntologyIndex.getSynonyms(Synonyme): listEquivalentClass
 		List<OntClass> result = new ArrayList<OntClass>();
 
 		ExtendedIterator parentIter = clazz.listSuperClasses(true);
-		while(parentIter.hasNext()) {
+		while (parentIter.hasNext()) {
 			OntClass parent = (OntClass) parentIter.next();
-log.debug("************* EM: getParents: for: "+ clazz.getLocalName()+ " = "+ parent.getLocalName()+ " ist anonymous Class?: "+ parent.isAnon());			
-//EM: skip Synonym-Class from QM ontology as parent
-if(parent.getLocalName()!=null && parent.getLocalName().equals("Synonym"))
-	continue;
-			if (!parent.isAnon() && !parent.hasLiteral(Jura.invisible, true)) {
-				result.add(parent);
+			if (log.isDebugEnabled()) {
+			    log.debug("************* EM: getParents: for: "+ clazz.getLocalName()+ " = "+ parent.getLocalName()+ " is anonymous Class?: "+ parent.isAnon());
 			}
+			
+			if (excludeClass(parent)) {
+			    continue;
+			}
+			result.add(parent);
 		}
 
 		return result;
@@ -385,8 +386,8 @@ if(parent.getLocalName()!=null && parent.getLocalName().equals("Synonym"))
 	}
 
 	/**
-	 * Look up <code>uri</code> in the ontology and return a list of child
-	 * concepts (URIs). Synonyms are not considered. The list contains no
+	 * Look up <code>clazz</code> in the ontology and return a list of child
+	 * concepts. Synonyms are not considered. The list contains no
 	 * duplicates. Never returns <code>null</code>.
 	 * 
 	 * @param clazz
@@ -403,7 +404,7 @@ if(parent.getLocalName()!=null && parent.getLocalName().equals("Synonym"))
 		ExtendedIterator childIter = clazz.listSubClasses(true);
 		while(childIter.hasNext()) {
 			OntClass child = (OntClass) childIter.next();
-			if (!child.hasLiteral(Jura.invisible, true)) {
+			if (!excludeClass(child)) {
 				result.add(child);
 			}
 		}
@@ -454,35 +455,23 @@ if(parent.getLocalName()!=null && parent.getLocalName().equals("Synonym"))
 		if (model.size() == 0)
 			return;
 		
-		ExtendedIterator it = model.listClasses();
+	      log.debug("***** INDEXES: *****, model has: " + model.size() + " Einträge");        
 
-		OntClass c;
-log.debug("***** INDEXES: *****, model has: " + model.size() + " Einträge");		
+		ExtendedIterator<OntClass> it = model.listClasses();
 		while (it.hasNext()) {
-			c = (OntClass)it.next();
-log.debug("****** OntClass.localName: "+ c.getLocalName()+ ", with Namespace :"+ c.getNameSpace()+ ", with URI: "+ c.getURI());
-// Nur die Klassen aus der Ontologie benutzen
-if (c.getNameSpace()!=null){
-	if (!c.getNameSpace().contains(nameSpace_qm))
-		continue;
-}
-
-			if (c.hasLiteral(Jura.invisible, true))  // not needed
-				continue;
-
-if ((c.getLocalName()!=null) && c.getLocalName().equals("Synonym")){   //skip Synonym class
-	log.debug("$$$$ OntClass:"+ c.getLocalName()+ " is skipped");
-	continue;
-}
+		    OntClass ontClass = it.next();
 			
-			if (!c.isAnon()) {
-				List<String> labels = OntologyUtils.getLabels(c);
-				// TODO maybe we should use the GermanAnalyzer at this place to have stop words removed
-				for (String label : labels) {
-log.debug("label: "+label);					
-					addToLabelIndex(stemmer.stem(label), c);
-					addToPrefixIndex(label);
-				}
+			if (excludeClass(ontClass)) {
+			    continue;
+			}
+			
+			List<String> labels = OntologyUtils.getLabels(ontClass);
+			log.debug("###############  adding labels " + labels);
+			// TODO maybe we should use the GermanAnalyzer at this place to have stop words removed
+			for (String label : labels) {
+			    log.debug("label: "+label);					
+			    addToLabelIndex(stemmer.stem(label), ontClass);
+			    addToPrefixIndex(label);
 			}
 		}
 		addIndividualsToIndex();    //EM: add Individual label
@@ -491,6 +480,50 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 
 	}
 
+
+	/**
+	 * check for classes not to incldie in the index
+	 * @param c
+	 * @return
+	 */
+	private boolean excludeClass(OntClass c) {
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("****** OntClass.localName: %s, with Namespace : %s, with URI: %s",
+                         c.getLocalName(), c.getNameSpace(), c.getURI()));
+        }
+
+        if (c.isAnon()) {
+            log.debug("############### exclude anon " + c);
+            return true;
+        }
+        
+        List<String> includeNamespaces = Config.getListProperty(Config.ONTOLOGY_INCLUDED_NAMESPACES);
+        if (!includeNamespaces.isEmpty()) {
+            // Nur die Klassen aus der Ontologie benutzen
+            if (c.getNameSpace() == null || !includeNamespaces.contains(c.getNameSpace())) {
+                if (log.isDebugEnabled()) {
+                    log.debug("###############  exclude class " + c.getLocalName() + "; namespace not included");
+                }
+                return true;
+            }
+        }
+
+        List<String> excludeProperties = Config.getListProperty(Config.ONTOLOGY_IGNORE_PROPERTY);
+        if (!excludeProperties.isEmpty()) {
+            for (String propURI : excludeProperties) {
+                Property property = model.createProperty(propURI);
+                if (c.hasLiteral(property, true)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug(String.format("###############  exclude %s having property %s", c.getLocalName(), propURI));
+                    }
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+	
 	//EM:***************************** start ***********************************	
 	/**
 	 * Adds a new entry to all indexes, e.g., label index, prefix index. The
@@ -502,40 +535,68 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 			return;
 		
 
-		ExtendedIterator ind_it = model.listIndividuals();
+		ExtendedIterator<Individual> ind_it = model.listIndividuals();
 		Individual ind;
-		List<Individual> result = new ArrayList<Individual>();
 		while (ind_it.hasNext()) {
-			ind = (Individual)ind_it.next();
-			log.debug("****** EM: Individual.localName: "+ ind.getLocalName()+ ", with label: "+OntologyUtils.getLabelsIndividual(ind)+ ", from class: "+ind.getOntClass().getLocalName() + ", with Prefix: "+ ind.getNameSpace());
+			ind = ind_it.next();
+	        if (log.isDebugEnabled()) {
+                log.debug(String.format("****** Individual.localName: %s, with label: %s, from class: %s ",
+                        ind.getLocalName(), OntologyUtils.getLabels(ind), ind.getOntClass().getLocalName()));
+            }
 
-// Nur die Klassen aus der Ontologie benutzen
-if (ind.getNameSpace()!=null){
-	if (!ind.getNameSpace().contains(nameSpace_qm)|| !ind.getOntClass().getNameSpace().contains(nameSpace_qm) )
-		continue;
-}
+	        if (excludeIndividual(ind)) {
+	            continue;
+	        }
 			
-			
-			List<String> labels = OntologyUtils.getLabelsIndividual(ind);
-			if((labels !=null)&&(labels.size()>0)){
-				for (String label : labels) {
-					if(label!=null){
-						addToLabelIndex(stemmer.stem(label), ind.getOntClass());
-						addToPrefixIndex(label);
-					}
-				}	
-			}
+			List<String> labels = OntologyUtils.getLabels(ind);
+			for (String label : labels) {
+				if (label!=null) {
+					addToLabelIndex(stemmer.stem(label), ind.getOntClass());
+					addToPrefixIndex(label);
+				}
+			}	
 		}
 	}
 
-// temporary, to remove *************************************	
-	protected List<Individual> dumpIndividuals() {	
-		ExtendedIterator ind_it = model.listIndividuals();
+	/**
+	 * helper to exclude individuals from the index
+	 * @param int the indivdual to test, should not be null
+	 * @return true if this individual should be ignored
+	 */
+	private boolean excludeIndividual(Individual ind) {
+        List<String> includeNamespaces = Config.getListProperty(Config.ONTOLOGY_INCLUDED_NAMESPACES);
+        if (!includeNamespaces.isEmpty()) {
+            if (ind.getNameSpace() != null && includeNamespaces.contains(ind.getNameSpace())) {
+                return false;
+            }
+            ExtendedIterator<OntClass> myclasses = ind.listOntClasses(false); 
+            while (myclasses.hasNext()) {
+                OntClass indClass = myclasses.next();
+                if (!excludeClass(indClass)) {
+                    myclasses.close();
+                    return true;
+                }
+            }
+            
+            if (log.isDebugEnabled()) {
+                log.debug("###############  skip class " + ind.getLocalName() + " from index; namespace not included");
+            }
+            return true;
+        }
+        return false;
+	}
+	
+	// temporary, to remove *************************************	
+	private List<Individual> dumpIndividuals() {	
+		ExtendedIterator<Individual> ind_it = model.listIndividuals();
 		Individual ind;
 		List<Individual> result = new ArrayList<Individual>();
 		while (ind_it.hasNext()) {
-			ind = (Individual)ind_it.next();
-			log.debug("****** Individual.localName: "+ ind.getLocalName()+ ", with label: "+OntologyUtils.getLabelsIndividual(ind)+ ", from class: "+ind.getOntClass().getLocalName());
+			ind = ind_it.next();
+			if (log.isDebugEnabled()) {
+                log.debug(String.format("****** Individual.localName: %s, with label: %s, from class: %s ",
+                        ind.getLocalName(), OntologyUtils.getLabels(ind), ind.getOntClass().getLocalName()));
+			}
 			result.add(ind);
 		}
 		return result;
@@ -582,7 +643,7 @@ if (ind.getNameSpace()!=null){
 			throw new NullPointerException("Parameter term must not be null");
 		
 		// TODO normalization of the term, e.g., remove all punctuation, '-', etc.
-log.debug("PrefixIndex.term: "+term);
+		log.debug("PrefixIndex.term: "+term);
 		String[] fragments = explode(term);
 		if (fragments.length <= 1)
 			return Collections.emptyList();
@@ -684,35 +745,39 @@ log.debug("PrefixIndex.term: "+term);
 	protected List<OntClass> getFromLabelIndex(String key) {
 		if (labelIdx.containsKey(key))
 //			return Arrays.asList(labelIdx.get(key));      //EM: original
-	return checkAdmin(Arrays.asList(labelIdx.get(key)));  //EM: included for test
+		    return checkAdmin(Arrays.asList(labelIdx.get(key)));  //EM: included for test
 		else
 			return Collections.emptyList(); 
 	}
-boolean isAdmin=false;
-public void setAdmin(boolean admin){
-	isAdmin = admin;
-}
+
+    boolean isAdmin = false;
+
+    public void setAdmin(boolean admin) {
+        isAdmin = admin;
+    }
+
 	private List<OntClass> checkAdmin(List<OntClass> classes){
-		List<OntClass> reslist = new ArrayList();
+		List<OntClass> reslist = new ArrayList<OntClass>();
 		for(OntClass cl: classes )
 		{
-log.debug("%%%%%%%%%%%% EM: user ist Admin: "+ isAdmin + ", class: "+cl.getURI()); 	
-			if(isAdmin){
-				if(cl.getNameSpace().contains(nameSpace_qmt)){
-					continue;	
-				}
-				else{
-				reslist.add(cl);
+		    if (log.isDebugEnabled()) {
+		        log.debug("%%%%%%%%%%%% EM: user ist Admin: "+ isAdmin + ", class: "+cl.getURI());
+		    }
+		    boolean exclude = excludeClass(cl);
+		    
+			if (isAdmin) {
+				if (exclude) {
+				    reslist.add(cl);
 				}
 			}
-			else{
-				if(cl.getNameSpace().contains(nameSpace_qmt)){
+			else if (!exclude) {
 				reslist.add(cl);
-				}
 			}
 		}
 
-	log.debug("%%%%%%%%%%%% EM: liste mit: "+reslist.size()+" Klassen" ); 	
+		if (log.isDebugEnabled()) {
+		    log.debug("%%%%%%%%%%%% EM: liste mit: "+reslist.size()+" Klassen" );
+		}
 	
 		return reslist;
 	}

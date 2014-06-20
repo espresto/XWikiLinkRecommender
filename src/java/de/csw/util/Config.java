@@ -51,14 +51,20 @@ public class Config {
 	public static final String LUCENE_EDITPROPRESULTS = "lucene.editpanel.maxresults";
 	
 	public static final String LANGUAGES = "languages";
-	
-	public static final String ONTOLOGY_SOURCE = "ontology.souce";
+
+	public static final String ONTOLOGY_SOURCE = "ontology.source";
 	public static final String ONTOLOGY_GRAPH = "ontology.graph";
 	public static final String VIRTUOSO_URL = "virtuoso.url";
 	public static final String VIRTUOSO_USR = "virtuoso.user";
 	public static final String VIRTUOSO_PW = "virtuoso.pw";
 	
+    /** comma separated list of namespaces so that only concepts in this namespace will be excluded */
+    public static final String ONTOLOGY_INCLUDED_NAMESPACES = "ontology.include.namespace";
 
+    /** comma separated list of properties so that concepts having this property will be excluded */
+    public static final String ONTOLOGY_IGNORE_PROPERTY = "ontology.exclude.properties";
+
+    
 	/**
 	 * Loads the properties from an input stream to the property hash table.
 	 * 
@@ -166,12 +172,11 @@ public class Config {
 	 * @param name
 	 * @return
 	 */
-	@SuppressWarnings("unchecked")
 	public static List<String> getListProperty(String name) {
 		String value = app_properties.getProperty(name);
 		if(value == null) {
 			log.error("Property not found: "+name);
-			return Collections.EMPTY_LIST;
+			return Collections.emptyList();
 		}
 		return Arrays.asList(value.split("[,;]"));
 	}
