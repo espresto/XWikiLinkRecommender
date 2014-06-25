@@ -61,6 +61,9 @@ public class Config {
     /** comma separated list of namespaces so that only concepts in this namespace will be excluded */
     public static final String ONTOLOGY_INCLUDED_NAMESPACES = "ontology.include.namespace";
 
+    /** comma separated list of namespaces so that concepts in this namespace will be excluded */
+    public static final String ONTOLOGY_EXCLUDED_NAMESPACES = "ontology.exclude.namespace";
+    
     /** comma separated list of properties so that concepts having this property will be excluded */
     public static final String ONTOLOGY_IGNORE_PROPERTY = "ontology.exclude.properties";
 

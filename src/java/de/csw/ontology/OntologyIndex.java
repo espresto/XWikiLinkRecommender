@@ -455,7 +455,7 @@ public class OntologyIndex {
 		if (model.size() == 0)
 			return;
 		
-	      log.debug("***** INDEXES: *****, model has: " + model.size() + " Einträge");        
+		log.debug("***** INDEXES: *****, model has: " + model.size() + " Einträge");        
 
 		ExtendedIterator<OntClass> it = model.listClasses();
 		while (it.hasNext()) {
@@ -506,6 +506,15 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
                 }
                 return true;
             }
+        } else {
+            List<String> excludeNamespaces = Config.getListProperty(Config.ONTOLOGY_EXCLUDED_NAMESPACES);
+            if (c.getNameSpace() == null || excludeNamespaces.contains(c.getNameSpace())) {
+                if (log.isDebugEnabled()) {
+                    log.debug("###############  exclude class " + c.getLocalName() + "; namespace excluded");
+                }
+                return true;
+            }
+
         }
 
         List<String> excludeProperties = Config.getListProperty(Config.ONTOLOGY_IGNORE_PROPERTY);

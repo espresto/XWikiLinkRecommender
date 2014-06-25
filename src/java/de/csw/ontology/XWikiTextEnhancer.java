@@ -80,13 +80,9 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		CSWGermanAnalyzer ga = new CSWGermanAnalyzer();
 		TokenStream ts = null;
 		StringBuilder result = new StringBuilder();
-// EM: Fehler bei velocity files: wenn z.B. date in der Ontologie ist => velocity files mit doc.date gehen kaputt		
-		if (text.indexOf("{{velocity}}")>=0){    // skip velocity templates !!
-			return text;
-		}
-// ende		
 		initializeLinkIndex(text);
-log.debug("****EM: XWikiTextEnhancer.enhance, text to enhance: "+ text);		
+		// log.debug("****EM: XWikiTextEnhancer.enhance, text to enhance: "+ text);
+		
 		try {
 			Reader r = new BufferedReader(new StringReader(text));
 			
@@ -107,8 +103,10 @@ log.debug("****EM: XWikiTextEnhancer.enhance, text to enhance: "+ text);
 					
 				result.append(text.substring(lastEndIndex, offsetAttribute.startOffset()));
 				term = String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length());
-System.out.println("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\nstartOffset(): "+ offsetAttribute.startOffset() 
-             + "\nendOffset(): "+offsetAttribute.endOffset()+"\ntoken.termBuffer(): "+ new String(charTermAttribute.buffer()) + "\nToken.term: "+charTermAttribute+ "\nToken.type: "+typeAttribute.type());      
+				if (log.isDebugEnabled()) {
+				    log.debug("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\nstartOffset(): "+ offsetAttribute.startOffset() 
+				            + "\nendOffset(): "+offsetAttribute.endOffset()+"\ntoken.termBuffer(): "+ new String(charTermAttribute.buffer()) + "\nToken.term: "+charTermAttribute+ "\nToken.type: "+typeAttribute.type());
+				}
 				
 				if (typeAttribute.type().equals(ConceptFilter.CONCEPT_TYPE) && isAnnotatable(offsetAttribute)) {
 					log.debug("Annotating concept: " + term);
@@ -123,7 +121,7 @@ System.out.println("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\nst
 		} catch (IOException e) {
 			Log.error("Error while processing the page content", e);
 		}
-log.debug("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toString());		
+		log.debug("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toString());		
 		
 		ga.close();
 		return result.toString();
