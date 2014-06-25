@@ -109,8 +109,19 @@ public class OntologyIndexTest extends TestBase {
 		List<String> prefixes = FileUtils.readLines(txtFile);
 		for (String p : prefixes) {
 			log.trace("** checking " + p);
-			Assert.assertTrue(index.isPrefix(p));
-			Assert.assertTrue(index.isPrefix(Arrays.asList(StringUtils.split(p))));
+			Assert.assertTrue(p, index.isPrefix(p));
+			Assert.assertTrue(p+"(split)", index.isPrefix(Arrays.asList(StringUtils.split(p))));
 		}
+	}
+	
+	
+	@Test
+	public void testImplode() {
+		Assert.assertArrayEquals("explode two words",
+				new String[]{"Two", "Words"}, index.explode("Two Words"));
+		Assert.assertArrayEquals("explode with punctuation marks",
+				new String[]{"You,", "or", "me?"}, index.explode("You, or me?"));
+		Assert.assertArrayEquals("explode with apostroph",
+				new String[]{"No,", "can't", "say", "why!"}, index.explode("No, can't say why!"));
 	}
 }
