@@ -23,59 +23,21 @@
  * You should have received a copy of the GNU Lesser General Public License along with this library; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA or see <http://www.gnu.org/licenses/>
  ******************************************************************************/
-package de.csw.xwiki.txtservice;
-
-import java.io.IOException;
-import java.util.TreeMap;
+package de.csw.xwiki.txtservice.util;
 
 import org.junit.Assert;
 import org.testng.annotations.Test;
 
-public class PlainTextExtractorTest {
+public class PlainTextViewTest {
 
-    // private static final Logger log = Logger.getLogger(PlainTextExtractorTest.class);
+    // private static final Logger log = Logger.getLogger(PlainTextViewTest.class);
 
-    /**
-     * Test simple plaintext extraction.
-     * ToDo: use text/offset format file to generate test files instead of bunch strings 
-     */
     @Test
-    public void extractPlainText() {
-
-        XWikiTextServiceEnhancer xwt = new XWikiTextServiceEnhancer();
-        TreeMap<Integer, Integer> offsets = new TreeMap<>();
-
-        //                       1         2         3         4         5         6
-        //             0123456789012345678901234567890123456789012345678901234567890123456789
-        String text = "Some [[Text>>doc:link]] and macro {{code}}code{{/code}} text.";
-        String plainText = xwt.extractPlainText(text, offsets);
-
-        // XXX: here maybe we want the link label, but do not get it now
-        //                     012345678901234567890123
-        String expectedText = "Some  and macro  text.";
-        Assert.assertEquals(expectedText, plainText);
-
-        for (int i = 0; i < plainText.length(); i++) {
-            int offset = xwt.getRealIndex(offsets, i);
-            Assert.assertEquals("at position " + i + " with prefix [[" + plainText.substring(0, i) + "]] : with offset " + offset,
-                    String.valueOf(plainText.charAt(i)), String.valueOf(text.charAt(offset)));
-        }
-
-        TreeMap<Integer, Integer> expectedOffsets = new TreeMap<>();
-        expectedOffsets.put(5, 23 - 5);
-        expectedOffsets.put(16, 55 - 16);
-        Assert.assertEquals(expectedOffsets, offsets);
-
-    }
-
-    /**
-     * @throws IOException
-     */
-    @Test
-    public void extractMorePlainText() throws IOException {
+    public void extractMorePlainText() {
         assertPlainText("", "");
 
         assertPlainText("Text  and ", "Text [[link>>target]] and [[rest]]");
+        assertPlainText("Some  and macro  text.", "Some [[Text>>doc:link]] and macro {{code}}code{{/code}} text.");
         assertPlainText("A  followed by ", "A {{html}}macro{{/html}} followed by [[link]]");
         assertPlainText("B  followed by  and  text.", "B {{html}}macro{{/html}} followed by [[link]] and {{html}}more{{/html}} text.");
         assertPlainText("C  followed by  and  text, finishing with a ",
@@ -89,16 +51,15 @@ public class PlainTextExtractorTest {
     }
 
     private void assertPlainText(String expectedPlainText, String text) {
-        XWikiTextServiceEnhancer xwt = new XWikiTextServiceEnhancer();
-        TreeMap<Integer, Integer> offsets = new TreeMap<>();
-        String plainText = xwt.extractPlainText(text, offsets);
+        PlainTextView plainTextView =  new PlainTextView(text);       
+        String plainText = plainTextView.getPlainText();
 
         Assert.assertEquals(expectedPlainText, plainText);
 
         for (int i = 0; i < plainText.length(); i++) {
-            int offset = xwt.getRealIndex(offsets, i);
+            int offset = plainTextView.getOriginalPosition(i);// xwt.getRealIndex(offsets, i); 
             Assert.assertEquals(
-                    "at position " + i + " with prefix [[" + plainText.substring(0, i) + "]] : with offset " + offset + " (set is " + offsets + ")",
+                    "at position " + i + " with prefix [[" + plainText.substring(0, i) + "]] : with offset " + offset,
                     String.valueOf(plainText.charAt(i)), String.valueOf(text.charAt(offset)));
         }
 

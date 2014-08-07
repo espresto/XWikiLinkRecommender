@@ -34,7 +34,7 @@ import org.apache.log4j.Logger;
 import de.csw.linkgenerator.CSWLinksetRenderer;
 import de.csw.ontology.TextEnhancer;
 import de.csw.ontology.XWikiTextEnhancer;
-import de.csw.ontology.XWikiTextServiceEnhancer;
+import de.csw.xwiki.txtservice.XWikiTextServiceEnhancer;
 
 public class OntologyNotificationRule implements XWikiNotificationRule {
 	static Logger log = Logger.getLogger(OntologyNotificationRule.class);
