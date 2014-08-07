@@ -27,6 +27,10 @@ public class XWikiTextServiceEnhancer implements TextEnhancer, Initializable {
         client = new TxtClient();        
         client.setTxtServiceUrl(Config.getAppProperty("neofonie.services.txt.serviceurl"));
         client.setTxtApiToken(Config.getAppProperty("neofonie.services.txt.apitoken"));
+        String configuredServices = Config.getAppProperty("neofonie.services.txt.services");
+        if (configuredServices != null) {
+            client.setTxtServices(configuredServices);
+        }
         initialized = client.isConfigured();
         if (!initialized) {
             log.warn("not initialized property; will do no enhancements");

@@ -23,6 +23,7 @@ public class TxtClient {
 
     private String txtServiceUrl;
     private String txtApiToken;
+    private String txtServices = "entities,dates,tags,categories";
 
     public TxtResponse analyze(String text) {
 
@@ -40,7 +41,7 @@ public class TxtClient {
         cmd.setRequestHeader("X-Api-Key", getTxtApiToken());
         cmd.getParams().setContentCharset("UTF-8");
         cmd.setParameter("text", text);
-        cmd.setParameter("services", "entities,dates,tags,categories");
+        cmd.setParameter("services", getTxtServices());
         // TODO: maybe not really, if we have many concurrent request
         cmd.setRequestHeader("Connection", "close");
 
@@ -128,6 +129,15 @@ public class TxtClient {
     public void setTxtApiToken(String txtApiToken) {
         this.txtApiToken = txtApiToken;
     }
+
+    public String getTxtServices() {
+        return txtServices;
+    }
+
+    public void setTxtServices(String txtServices) {
+        this.txtServices = txtServices;
+    }
+
 
     public boolean isConfigured() {
         return txtApiToken != null && !"".equals(txtApiToken);
