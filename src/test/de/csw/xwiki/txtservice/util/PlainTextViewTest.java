@@ -47,7 +47,11 @@ public class PlainTextViewTest {
         assertPlainText("Two  with more text", "Two [[consecutive>>target]][[links]] with more text");
 
         assertPlainText("", "{{include document=\"Panels.PanelSheet\"/}}");
-
+    }
+    
+    @Test
+    public void needsWork() {
+        assertPlainText("A Macro  inside", "A Macro {{velocity}}containing a [[Link]]{{/velocity}} inside");        
     }
 
     private void assertPlainText(String expectedPlainText, String text) {
