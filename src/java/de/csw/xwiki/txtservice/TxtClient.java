@@ -36,7 +36,6 @@ public class TxtClient {
             return result;
         }
 
-        // configuration? say, what do you mean with configuration?
         PostMethod cmd = new PostMethod(getTxtServiceUrl());
         cmd.setRequestHeader("X-Api-Key", getTxtApiToken());
         cmd.getParams().setContentCharset("UTF-8");

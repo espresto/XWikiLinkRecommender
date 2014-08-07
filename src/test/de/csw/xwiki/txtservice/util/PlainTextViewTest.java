@@ -57,7 +57,7 @@ public class PlainTextViewTest {
         Assert.assertEquals(expectedPlainText, plainText);
 
         for (int i = 0; i < plainText.length(); i++) {
-            int offset = plainTextView.getOriginalPosition(i);// xwt.getRealIndex(offsets, i); 
+            int offset = plainTextView.getOriginalPosition(i);
             Assert.assertEquals(
                     "at position " + i + " with prefix [[" + plainText.substring(0, i) + "]] : with offset " + offset,
                     String.valueOf(plainText.charAt(i)), String.valueOf(text.charAt(offset)));

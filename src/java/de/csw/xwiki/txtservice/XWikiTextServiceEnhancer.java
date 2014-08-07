@@ -43,7 +43,6 @@ public class XWikiTextServiceEnhancer implements TextEnhancer, Initializable {
             return text;
         }
         
-        // factor out to plain text extractor
         PlainTextView plainTextView = new PlainTextView(text);
         String filteredText = plainTextView.getPlainText();
 
@@ -60,7 +59,7 @@ public class XWikiTextServiceEnhancer implements TextEnhancer, Initializable {
         }
 
         if (!filteredText.equals(response.getText())) {
-            log.warn("text got modified by service call"); // todo: here diff ?
+            log.warn("text got modified by service call");
         }
 
         int offSet = 0;
@@ -75,7 +74,9 @@ public class XWikiTextServiceEnhancer implements TextEnhancer, Initializable {
             int end = plainTextView.getOriginalPosition(e.getEnd() - 1) + 1 + offSet;
 
             String e_text = text.substring(start, end);
-            log.info("found " + e.getSurface() + " as " + e.getLabel() + " under " + e_text + ((e.getUri() != null) ? (" see also " + e.getUri()) : ""));
+            if (log.isDebugEnabled()) {
+                log.debug("found " + e.getSurface() + " as " + e.getLabel() + " under " + e_text + ((e.getUri() != null) ? (" see also " + e.getUri()) : ""));
+            }
 
             // FIXME: we should html-attribute-escape instead of trusting the service
             String prefix = "(% class=\"txt\" title=\"" + e.getType() + "\" %)";

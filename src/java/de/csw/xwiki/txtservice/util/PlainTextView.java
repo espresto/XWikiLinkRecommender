@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  * how to identify parts in the original text.
  * This information is only valid of the original content is not modified, of course.
  * The extraction only support xwiki/2.1 syntax.
- * in principle it could be extendable to other syntaxes.
+ * in principle it could be extendable to other syntaxes, if the regular expressions are made configurable
  */
 public class PlainTextView {
 
@@ -27,9 +27,8 @@ public class PlainTextView {
         this.originalText = text;
         extractPlainText();
     }
-    
 
-    // is copy & paste from XWikiTestServiceEnhancer
+    // is copy & paste from XWikiTextServiceEnhancer
     private static final Pattern[] EXCLUDE_FROM_ENHANCEMENTS = {
         Pattern.compile("\\[\\[.*?\\]\\]"),
         Pattern.compile("\\{\\{(velocity|groovy|html|code).*?\\}\\}.*?\\{\\{/\\1\\}\\}", Pattern.DOTALL),
@@ -39,7 +38,7 @@ public class PlainTextView {
     // alternatively we could use plainText renderer instead, or try to operate on blocks
     // but in these cases we loose the "original position" information easily 
     protected void extractPlainText() {
-        final boolean fullcopy = false;
+
         if (originalText == null)
             throw new NullPointerException("Parameter text must not be null");
 
@@ -65,26 +64,13 @@ public class PlainTextView {
                 offsets.put(startOffset, targetOffset);
 
                 // shift the larger entries appropriately, which we might have from earlier passes
-                if (fullcopy) {
-                    TreeMap<Integer, Integer> oldOffsets = new TreeMap<>(offsets);
-                    offsets.clear();
-                    for (Entry<Integer, Integer> entry : oldOffsets.entrySet()) {
-                        if (entry.getKey() > startOffset) {
-                            offsets.put(entry.getKey() - targetDeltaOffset, entry.getValue() + targetDeltaOffset);
-                        } else {
-                            offsets.put(entry.getKey(), entry.getValue());
-                        }
-                    }
-                } else {
-                    Map<Integer, Integer> upperMap = offsets.tailMap(startOffset + 1);
-                    if (!upperMap.isEmpty()) {
-                        // we need to remove the old positions first, in case some old and new indexes overlap
-                        upperMap = new HashMap<>(upperMap);
-                        offsets.entrySet().removeAll(upperMap.entrySet());
-
-                        for (Entry<Integer, Integer> entry : upperMap.entrySet()) {
-                            offsets.put(entry.getKey() - targetDeltaOffset, entry.getValue() + targetDeltaOffset);
-                        }
+                Map<Integer, Integer> upperMap = offsets.tailMap(startOffset + 1);
+                if (!upperMap.isEmpty()) {
+                    // we need to remove the old positions first, in case some old and new indexes overlap
+                    upperMap = new HashMap<>(upperMap);
+                    offsets.entrySet().removeAll(upperMap.entrySet());
+                    for (Entry<Integer, Integer> entry : upperMap.entrySet()) {
+                        offsets.put(entry.getKey() - targetDeltaOffset, entry.getValue() + targetDeltaOffset);
                     }
                 }
             }
