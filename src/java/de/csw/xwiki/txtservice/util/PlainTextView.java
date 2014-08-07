@@ -30,9 +30,9 @@ public class PlainTextView {
 
     // is copy & paste from XWikiTextServiceEnhancer
     private static final Pattern[] EXCLUDE_FROM_ENHANCEMENTS = {
-        Pattern.compile("\\[\\[.*?\\]\\]"),
-        Pattern.compile("\\{\\{(velocity|groovy|html|code).*?\\}\\}.*?\\{\\{/\\1\\}\\}", Pattern.DOTALL),
+        Pattern.compile("\\{\\{(velocity|groovy|html|code|comment).*?\\}\\}.*?\\{\\{/\\1\\}\\}", Pattern.DOTALL),
         Pattern.compile("\\{\\{(include).*?/\\}\\}"),
+        Pattern.compile("\\[\\[.*?\\]\\]"),
     };
 
     // alternatively we could use plainText renderer instead, or try to operate on blocks
