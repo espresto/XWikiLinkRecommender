@@ -36,7 +36,7 @@
          - - - - - - - - - - - - - - - - - -->
 	<target name="compile" description="Compile the sources">
 		<mkdir dir="${build.dir}" />
-		<javac destdir="${build.dir}" source="1.5" deprecation="false" debug="true"
+		<javac destdir="${build.dir}" source="1.7" deprecation="false" debug="true"
 				classpathref="classpath:build" encoding="UTF-8">
 			<src path="${src.java.dir}" />
 		</javac>

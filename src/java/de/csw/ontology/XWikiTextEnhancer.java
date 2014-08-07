@@ -45,6 +45,7 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.jfree.util.Log;
+import org.xwiki.component.annotation.Component;
 
 import de.csw.lucene.ConceptFilter;
 import de.csw.util.Config;
@@ -56,6 +57,7 @@ import de.csw.util.URLEncoder;
  * @author rheese
  * 
  */
+@Component("ontology")
 public class XWikiTextEnhancer implements TextEnhancer {
 	static final Logger log = Logger.getLogger(XWikiTextEnhancer.class);
 	
@@ -122,10 +124,11 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		return result.toString();
 	}
 	
+	// has copy & paste in XWikiTestServiceEnhancer
 	private static final Pattern[] EXCLUDE_FROM_ENHANCEMENTS = {
 		Pattern.compile("\\[\\[[^\\]]*\\]\\]"),
 		Pattern.compile("<csw:linkset.*?>.*?</csw:linkset>"),
-		Pattern.compile("\\{\\{(velocity|groovy|html).*?\\}\\}.*?\\{\\{/\\1\\}\\}", Pattern.DOTALL)
+		Pattern.compile("\\{\\{(velocity|groovy|html|code).*?\\}\\}.*?\\{\\{/\\1\\}\\}", Pattern.DOTALL)
 	};
 	
 	/**

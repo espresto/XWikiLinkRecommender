@@ -25,17 +25,16 @@
  ******************************************************************************/
 package de.csw.xwiki.plugin;
 
-import java.net.MalformedURLException;
-import java.net.URL;
-
-import org.apache.log4j.Logger;
-
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.notify.XWikiNotificationRule;
 
+import org.apache.log4j.Logger;
+
 import de.csw.linkgenerator.CSWLinksetRenderer;
+import de.csw.ontology.TextEnhancer;
 import de.csw.ontology.XWikiTextEnhancer;
+import de.csw.ontology.XWikiTextServiceEnhancer;
 
 public class OntologyNotificationRule implements XWikiNotificationRule {
 	static Logger log = Logger.getLogger(OntologyNotificationRule.class);
@@ -48,10 +47,14 @@ public class OntologyNotificationRule implements XWikiNotificationRule {
 	static final String ACTION_LOCK = "lock";
 	
 	private XWikiTextEnhancer textEnhancer;
+
+	private XWikiTextServiceEnhancer serviceEnhancer;
 	private CSWLinksetRenderer linksetRenderer;
 	
 	public OntologyNotificationRule(OntologyPlugin plugin) {
 		textEnhancer = new XWikiTextEnhancer();
+		serviceEnhancer = new XWikiTextServiceEnhancer();
+		serviceEnhancer.initialize();
 		this.linksetRenderer = new CSWLinksetRenderer();
 		this.plugin = plugin;
 	}
@@ -83,6 +86,7 @@ public class OntologyNotificationRule implements XWikiNotificationRule {
 			
 			String content = orignialDoc != null ? orignialDoc.getContent() : doc.getContent();
 			String enhancedContent = textEnhancer.enhance(content);
+			enhancedContent = serviceEnhancer.enhance(enhancedContent);
 			// enhancedContent = linksetRenderer.renderLinks(enhancedContent);
 			
 			doc.setContent(enhancedContent);

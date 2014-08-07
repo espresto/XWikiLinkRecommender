@@ -25,6 +25,9 @@
  ******************************************************************************/
 package de.csw.ontology;
 
+import org.xwiki.component.annotation.Role;
+
+@Role
 public interface TextEnhancer {
 
 	/**
