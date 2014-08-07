@@ -3,9 +3,9 @@ package de.csw.xwiki.txtservice.model;
 public class DateRange extends TxtBase {
 
     private Date dateStart, dateEnd;
-    int start, end;
-    String surface;
-
+    private int start, end;
+    private String surface;
+    
     public Date getDateStart() {
         return dateStart;
     }
