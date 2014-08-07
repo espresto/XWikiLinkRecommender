@@ -26,6 +26,7 @@
 package de.csw.xwiki.plugin;
 
 import com.xpn.xwiki.XWikiContext;
+import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.notify.XWikiNotificationRule;
 
@@ -80,6 +81,12 @@ public class OntologyNotificationRule implements XWikiNotificationRule {
 		if (log.isDebugEnabled())
 			log.debug("PREVERIFY: Received " + action + " action for doc: " + doc.getName());
 
+		try {
+			doc = doc.getTranslatedDocument(context);
+		} catch (XWikiException e) {
+			log.error("could not fetch translation", e);
+		}
+		
 		XWikiDocument orignialDoc = doc.getOriginalDocument();
 
 		if (ACTION_VIEW.equals(action)) {
