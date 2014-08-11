@@ -41,7 +41,6 @@ import org.apache.lucene.analysis.de.CSWGermanAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
-import org.jfree.util.Log;
 import org.xwiki.component.annotation.Component;
 
 import de.csw.lucene.ConceptFilter;
@@ -115,7 +114,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 			}
 			result.append(text.subSequence(lastEndIndex, text.length()));
 		} catch (IOException e) {
-			Log.error("Error while processing the page content", e);
+			log.error("Error while processing the page content", e);
 		}
 		log.debug("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toString());		
 		
