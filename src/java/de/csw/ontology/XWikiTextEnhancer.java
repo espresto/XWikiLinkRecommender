@@ -29,6 +29,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -167,6 +168,13 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	 */
 	protected String getSearchURL(Collection<String> terms) {
 		log.debug("** search terms: " + terms);
-		return LUCENE_URL + "?text=" + URLEncoder.encode(StringUtils.join(terms, ' '));
+		List<String> phrasesQuoted = new ArrayList<>(terms.size());
+		for (String term : terms) {
+			if (term.indexOf(' ') != -1) {
+				term = '"' + term +'"';
+			}
+			phrasesQuoted.add(term);
+		}
+		return LUCENE_URL + "?text=" + URLEncoder.encode(StringUtils.join(phrasesQuoted, ' '));
 	}
 }
