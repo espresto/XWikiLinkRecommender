@@ -32,10 +32,6 @@ import java.io.StringReader;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map.Entry;
-import java.util.TreeMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -50,6 +46,7 @@ import org.xwiki.component.annotation.Component;
 import de.csw.lucene.ConceptFilter;
 import de.csw.util.Config;
 import de.csw.util.URLEncoder;
+import de.csw.xwiki.txtservice.util.PlainTextView;
 
 /**
  * Uses background knowledge to enhance the text.
@@ -66,9 +63,6 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	
 	OntologyIndex index;
 	
-	/** index for storing the positions of links in a text (start position, end position) */
-	TreeMap<Integer, Integer> linkIndex = new TreeMap<Integer, Integer>();
-	
 	public XWikiTextEnhancer() {
 		index = OntologyIndex.get();
 	}
@@ -81,11 +75,11 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		CSWGermanAnalyzer ga = new CSWGermanAnalyzer();
 		TokenStream ts = null;
 		StringBuilder result = new StringBuilder();
-		initializeLinkIndex(text);
-		// log.debug("****EM: XWikiTextEnhancer.enhance, text to enhance: "+ text);
+		
+		PlainTextView plainTextView = new PlainTextView(text);
 		
 		try {
-			Reader r = new BufferedReader(new StringReader(text));
+			Reader r = new BufferedReader(new StringReader(plainTextView.getPlainText()));
 			
 			ts = ga.tokenStream("",	 r);
 			
@@ -98,21 +92,25 @@ public class XWikiTextEnhancer implements TextEnhancer {
 			
 			while(ts.incrementToken()) {
 			
-				result.append(text.substring(lastEndIndex, offsetAttribute.startOffset()));
+				final int endOtherOffset = plainTextView.getOriginalEndPosition(offsetAttribute.startOffset());
+				final int startTextOffset = plainTextView.getOriginalPosition(offsetAttribute.startOffset());
+				final int endTextOffset = plainTextView.getOriginalEndPosition(offsetAttribute.endOffset());
+				
+				result.append(text.substring(lastEndIndex, endOtherOffset));
 				term = String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length());
 				if (log.isDebugEnabled()) {
-				    log.debug("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\nstartOffset(): "+ offsetAttribute.startOffset() 
+				    log.debug("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\nstartOffset(): "+ endOtherOffset 
 				            + "\nendOffset(): "+offsetAttribute.endOffset()+"\ntoken.termBuffer(): "+ new String(charTermAttribute.buffer()) + "\nToken.term: "+charTermAttribute+ "\nToken.type: "+typeAttribute.type());
 				}
 				
-				if (typeAttribute.type().equals(ConceptFilter.CONCEPT_TYPE) && isAnnotatable(offsetAttribute)) {
+				if (typeAttribute.type().equals(ConceptFilter.CONCEPT_TYPE)) {
 					log.debug("Annotating concept: " + term);
-					annotateWithSearch(result, text.substring(offsetAttribute.startOffset(), offsetAttribute.endOffset()), term);
+					annotateWithSearch(result, text.substring(startTextOffset, endTextOffset), term);
 				} else {
-					result.append(text.substring(offsetAttribute.startOffset(), offsetAttribute.endOffset()));
+					result.append(text.substring(startTextOffset, endTextOffset));
 				}
 					
-				lastEndIndex = offsetAttribute.endOffset();
+				lastEndIndex = plainTextView.getOriginalPosition(offsetAttribute.endOffset());
 			}
 			result.append(text.subSequence(lastEndIndex, text.length()));
 		} catch (IOException e) {
@@ -124,56 +122,6 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		return result.toString();
 	}
 	
-	// has copy & paste in XWikiTestServiceEnhancer
-	private static final Pattern[] EXCLUDE_FROM_ENHANCEMENTS = {
-		Pattern.compile("\\[\\[[^\\]]*\\]\\]"),
-		Pattern.compile("<csw:linkset.*?>.*?</csw:linkset>"),
-		Pattern.compile("\\{\\{(velocity|groovy|html|code).*?\\}\\}.*?\\{\\{/\\1\\}\\}", Pattern.DOTALL)
-	};
-	
-	/**
-	 * Extract from text all phrases that are enclosed by '[' and ']' denoting
-	 * an xWiki link.
-	 * 
-	 * @param text
-	 *            text to parse
-	 */
-	protected void initializeLinkIndex(String text) {
-		if (text == null)
-			throw new NullPointerException("Parameter text must not be null");
-		
-		linkIndex.clear();
-
-		if (text.isEmpty()) return;
-		
-		for (Pattern pattern : EXCLUDE_FROM_ENHANCEMENTS) {
-			Matcher matcher = pattern.matcher(text);
-			while (matcher.find()) {
-				linkIndex.put(matcher.start(), matcher.end());
-			}	    
-		}
-	}
-
-	/**
-	 * Test if a token can be annotated by the {@link TextEnhancer}, e.g., if it
-	 * is not inside an exclude range (e.g. a wiki link).
-	 * 
-	 * @param offsetAttribute
-	 * 		the offset of the token into the text.
-	 * @return true iff the token can be annotated
-	 */
-	protected boolean isAnnotatable(OffsetAttribute offsetAttribute) {
-		final int tokenStart = offsetAttribute.startOffset();
-		Entry<Integer, Integer> containingRange = linkIndex.floorEntry(tokenStart);
-		
-		while (containingRange != null) {
-		    if (containingRange.getValue() >= tokenStart) {
-			return false;
-		    }
-		    containingRange = linkIndex.lowerEntry(containingRange.getKey());
-		}
-		return true;
-	}
 
 	/**
 	 * Annotates the term by linking <code>term</code> to the search page of the
@@ -189,8 +137,10 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	protected void annotateWithSearch(StringBuilder sb, String term, String stemBase) {
 		List<String> matches = index.getSimilarMatchLabels(term, MAX_SIMILAR_CONCEPTS);
 
-		if (matches.isEmpty())
+		if (matches.isEmpty()) {
+			sb.append(term);
 			return;
+		}
 
 		sb.append("[[").append(term);
 		sb.append(">>").append(getSearchURL(matches));
