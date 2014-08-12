@@ -9,6 +9,8 @@ import org.xwiki.component.phase.Initializable;
 
 import de.csw.ontology.TextEnhancer;
 import de.csw.util.Config;
+import de.csw.xwiki.txtservice.model.Category;
+import de.csw.xwiki.txtservice.model.DateRange;
 import de.csw.xwiki.txtservice.model.Entity;
 import de.csw.xwiki.txtservice.model.TxtResponse;
 import de.csw.xwiki.txtservice.util.PlainTextView;
@@ -20,11 +22,11 @@ public class XWikiTextServiceEnhancer implements TextEnhancer, Initializable {
 
     private TxtClient client;
 
-    private boolean initialized = false; 
+    private boolean initialized = false;
 
     @Override
     public void initialize() {
-        client = new TxtClient();        
+        client = new TxtClient();
         client.setTxtServiceUrl(Config.getAppProperty("neofonie.services.txt.serviceurl"));
         client.setTxtApiToken(Config.getAppProperty("neofonie.services.txt.apitoken"));
         String configuredServices = Config.getAppProperty("neofonie.services.txt.services");
@@ -46,7 +48,7 @@ public class XWikiTextServiceEnhancer implements TextEnhancer, Initializable {
             }
             return text;
         }
-        
+
         PlainTextView plainTextView = new PlainTextView(text);
         String filteredText = plainTextView.getPlainText();
 
@@ -75,11 +77,12 @@ public class XWikiTextServiceEnhancer implements TextEnhancer, Initializable {
             }
 
             int start = plainTextView.getOriginalPosition(e.getStart()) + offSet;
-            int end = plainTextView.getOriginalPosition(e.getEnd() - 1) + 1 + offSet;
+            int end = plainTextView.getOriginalEndPosition(e.getEnd()) + offSet;
 
             String e_text = text.substring(start, end);
             if (log.isDebugEnabled()) {
-                log.debug("found " + e.getSurface() + " as " + e.getLabel() + " under " + e_text + ((e.getUri() != null) ? (" see also " + e.getUri()) : ""));
+                log.debug("found " + e.getSurface() + " as " + e.getLabel() + " under " + e_text + ((e.getUri() != null) ? (" see also " + e.getUri()) : "")
+                        + " with confidence " + e.getConfidence());
             }
 
             // FIXME: we should html-attribute-escape instead of trusting the service
@@ -94,6 +97,20 @@ public class XWikiTextServiceEnhancer implements TextEnhancer, Initializable {
                 alreadyFound.add(e.getLabel());
             } else {
                 alreadyFound.add(e.getSurface());
+            }
+        }
+
+        for (DateRange dr : response.getDates()) {
+            log.info("at position " + dr.getStart() + " found date as " + dr.getSurface());
+        }
+
+        if (!response.getCategories().isEmpty()) {
+            Category cat = response.getCategories().get(0);
+            log.info("first category " + cat.getLabel() + " with " + cat.getConfidence());
+            for (Category other : response.getCategories().subList(1, response.getCategories().size())) {
+                if (other.getConfidence() >= cat.getConfidence()) {
+                    log.info("higher for category " + other.getLabel() + " with " + other.getConfidence());
+                }
             }
         }
 
