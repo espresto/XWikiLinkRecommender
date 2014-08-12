@@ -28,7 +28,6 @@ public class PlainTextView {
         extractPlainText();
     }
 
-    // is copy & paste from XWikiTextServiceEnhancer
     private static final Pattern[] EXCLUDE_FROM_ENHANCEMENTS = {
         Pattern.compile("\\{\\{(velocity|groovy|html|code|comment).*?\\}\\}.*?\\{\\{/\\1\\}\\}", Pattern.DOTALL),
         Pattern.compile("\\{\\{(include).*?/\\}\\}"),
@@ -95,7 +94,7 @@ public class PlainTextView {
      * plainText.charAt(position) is the same as originalText.charAt( getOriginalPosition(position) ).
      * Behavior for out of range values is undefined
      * 
-     * @param position
+     * @param index
      * @return the equivalent position in the original string
      */
     public int getOriginalPosition(int index) {
@@ -104,6 +103,16 @@ public class PlainTextView {
             index += latestOffset.getValue();
         }
         return index;
+    }
+    
+    /**
+     * for a given position in the plain text string returns the index in the full text string such that
+     * originalText.substring(0, getOriginalEndPosition(position)) has plain text of plainText.substring(0, position) 
+     * @param index
+     * @return the equivalent position in the original string
+     */
+    public int getOriginalEndPosition(int index) {
+        return getOriginalPosition(index - 1) + 1;
     }
     
 }
