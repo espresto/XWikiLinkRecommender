@@ -44,8 +44,8 @@ import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 
 import de.csw.lucene.ConceptFilter;
 import de.csw.util.Config;
+import de.csw.util.PlainTextView;
 import de.csw.util.URLEncoder;
-import de.csw.xwiki.txtservice.util.PlainTextView;
 
 /**
  * Uses background knowledge to enhance the text.

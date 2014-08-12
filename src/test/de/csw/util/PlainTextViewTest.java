@@ -23,10 +23,12 @@
  * You should have received a copy of the GNU Lesser General Public License along with this library; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA or see <http://www.gnu.org/licenses/>
  ******************************************************************************/
-package de.csw.xwiki.txtservice.util;
+package de.csw.util;
 
 import org.junit.Assert;
 import org.testng.annotations.Test;
+
+import de.csw.util.PlainTextView;
 
 public class PlainTextViewTest {
 

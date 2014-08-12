@@ -1,4 +1,4 @@
-package de.csw.xwiki.txtservice.util;
+package de.csw.util;
 
 import java.util.HashMap;
 import java.util.Map;
