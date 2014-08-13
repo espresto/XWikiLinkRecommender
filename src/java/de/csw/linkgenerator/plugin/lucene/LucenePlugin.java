@@ -542,7 +542,7 @@ LOG.debug(" ***************EM: buildQuery, query: "+ query+", virtualWikiNames: 
 		{
 			LOG.fatal(e.getMessage());
 		}
-        indexUpdaterThread = new Thread(indexUpdater, "Lucene Index Updater");
+        indexUpdaterThread = new Thread(indexUpdater, "LinkRecommender Lucene Index Updater");
         indexUpdaterThread.start();
         indexRebuilder = new IndexRebuilder(indexUpdater, context);
 
