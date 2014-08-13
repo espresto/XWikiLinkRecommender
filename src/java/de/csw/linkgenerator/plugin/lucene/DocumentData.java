@@ -29,6 +29,7 @@ import com.xpn.xwiki.api.DocumentSection;
 import com.xpn.xwiki.doc.XWikiDocument;
 
 import de.csw.ontology.OntologyIndex;
+import de.csw.util.Config;
 
 /**
  * Holds all data but the content of a wiki page to be indexed. The content is retrieved at indexing
@@ -91,7 +92,7 @@ log.debug("&&&&&&&&&&&&&&& EM: context check, user: " + context.getXWikiUser());
 
         for (int i = 0; i < terms.length; i++) {
 			String term = terms[i];
-			List<String> similarTerms = ontologyIndex.getSimilarMatchLabels(term, 5);
+			List<String> similarTerms = ontologyIndex.getSimilarMatchLabels(term, Config.getIntAppProperty(Config.LUCENE_MAXSEARCHTERMS));
 			for (String similarTerm : similarTerms) {
 				text.append(' ');
 				text.append(similarTerm);
