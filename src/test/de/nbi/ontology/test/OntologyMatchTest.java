@@ -199,7 +199,7 @@ public class OntologyMatchTest extends TestBase {
 		PrintWriter w = new PrintWriter(new FileWriter(outFile));
 		for (String term : terms) {
 			log.trace("** matching " + term);
-			w.println(index.getSimilarMatches(term));
+			w.println(index.getSimilarMatches(term, 10));
 		}
 		w.flush();
 		w.close();
