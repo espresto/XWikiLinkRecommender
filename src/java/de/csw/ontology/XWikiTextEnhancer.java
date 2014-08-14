@@ -75,7 +75,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 					final int endTextOffset = plainTextView.getOriginalEndPosition(oca.endOfMatch());
 
 					result.append(text.substring(lastEndIndex, startTextOffset));
-					final String term = oca.token(); // String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length());
+					final String term = oca.token();
 					if (log.isDebugEnabled()) {
 						log.debug("****EM: XWikiTextEnhancer.enhance2, concept: " + term + "\nstartOffset(): " + startTextOffset + "\nendOffset(): "
 								+ endTextOffset + "\nToken.term: " + term + "\nToken.type: " + oca.isConcept());
@@ -118,7 +118,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	 */
 	protected void annotateWithSearch(StringBuilder sb, String term, String stemBase) {
 		
-		// FIXME: here use stemBase instead to extract labels, and avoid matching  the "myself"
+		// FIXME: here maybe use stemBase instead to extract labels, and avoid matching "myself"
 		List<String> matches = index.getSimilarMatchLabels(term, MAX_SIMILAR_CONCEPTS);
 
 		if (matches.isEmpty()) {
@@ -134,7 +134,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		boolean afterFirstTerm = false;
 		while (it.hasNext()) {
 			String similarTerm = it.next();
-			if (!stemBase.equals(this.index.getStemmer().stem(similarTerm))) {  // duh ! nope! why ?
+			if (!stemBase.equals(this.index.getStemmer().stem(similarTerm))) {
 				if (afterFirstTerm) { sb.append(", "); }
 				sb.append(similarTerm);
 				afterFirstTerm = true;
