@@ -67,6 +67,9 @@ public class Config {
     /** comma separated list of properties so that concepts having this property will be excluded */
     public static final String ONTOLOGY_IGNORE_PROPERTY = "ontology.exclude.properties";
 
+    /** if true, use the "light stemmer" */
+    public static final String USE_LIGHT_STEMMER = "ontoloy.use.lightstemmer";
+
     
 	/**
 	 * Loads the properties from an input stream to the property hash table.

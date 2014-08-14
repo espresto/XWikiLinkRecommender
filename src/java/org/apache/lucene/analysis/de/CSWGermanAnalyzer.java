@@ -64,6 +64,7 @@ import org.apache.lucene.util.Version;
 
 import de.csw.lucene.ConceptFilter;
 import de.csw.ontology.OntologyIndex;
+import de.csw.util.Config;
 
 /**
  * Analyzer for German language. Supports an external list of stopwords (words that
@@ -104,31 +105,34 @@ public class CSWGermanAnalyzer extends Analyzer {
    */
   private Set exclusionSet = new HashSet();
 
+  private boolean withConcepts;
+  
   /**
    * Builds an analyzer with the default stop words
    * (<code>GERMAN_STOP_WORDS</code>).
    */
-  public CSWGermanAnalyzer() {
+  public CSWGermanAnalyzer(boolean withConcepts) {
     stopSet = StopFilter.makeStopSet(Version.LUCENE_40, GERMAN_STOP_WORDS);
+    this.withConcepts = withConcepts;
   }
 
   /**
    * Builds an analyzer with the given stop words.
-   */
+   * /
   public CSWGermanAnalyzer(String[] stopwords) {
     stopSet = StopFilter.makeStopSet(Version.LUCENE_40, stopwords);
   }
 
   /**
    * Builds an analyzer with the given stop words.
-   */
+   * /
   public CSWGermanAnalyzer(Map stopwords) {
     stopSet = new HashSet(stopwords.keySet());
   }
 
   /**
    * Builds an analyzer with the given stop words.
-   */
+   * /
   public CSWGermanAnalyzer(File stopwords) throws IOException {
     stopSet = WordlistLoader.getWordSet(new FileReader(stopwords), Version.LUCENE_40);
   }
@@ -163,11 +167,18 @@ public class CSWGermanAnalyzer extends Analyzer {
 		TokenStream result = new StandardFilter(Version.LUCENE_40, source);
 	    result = new LowerCaseFilter(Version.LUCENE_40, result);
 	    result = new StopFilter(Version.LUCENE_40, result, new CharArraySet(Version.LUCENE_40, stopSet, true));
-	    result = new GermanStemFilter(result/*, exclusionSet*/);
-	    result = new ConceptFilter(result, OntologyIndex.get());
+	    if (Config.getBooleanAppProperty(Config.USE_LIGHT_STEMMER)) {
+	    	result = new GermanLightStemFilter(result);
+	    } else {
+	    	result = new GermanStemFilter(result/*, exclusionSet*/);
+	    }
+	    
+	    if (withConcepts) {
+	    	result = new ConceptFilter(result, OntologyIndex.get());
+	    }
 	    
 	    return new TokenStreamComponents(source, result);
 	}
-
+	
 
 }

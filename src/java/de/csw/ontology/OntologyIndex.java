@@ -38,6 +38,7 @@ import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.apache.lucene.analysis.de.GermanLightStemmerWrapperFactory;
 import org.apache.lucene.analysis.de.GermanStemmer;
 import org.apache.lucene.analysis.de.Stemmer;
 
@@ -97,7 +98,11 @@ public class OntologyIndex {
 //		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_RULE_INF);	//OWL RuleReasoner - symmetric equivalentClass
 //		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM_RDFS_INF);	//OWL RuleReasoner - keine equivalentClass
 		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM_RULES_INF);	//OWL Lite RuleReasoner - symmetric equivalentClass
-		stemmer = new GermanStemmer();
+		if (Config.getBooleanAppProperty(Config.USE_LIGHT_STEMMER)) {
+			stemmer = GermanLightStemmerWrapperFactory.forGermanLightStemmer();			
+		} else {
+			stemmer = new GermanStemmer();
+		}
 	}
 
 	/**
@@ -139,7 +144,7 @@ public class OntologyIndex {
 	 * returns <code>null</code>.
 	 * 
 	 * @param term
-	 *            term to be looked up
+	 *            term to be looked up (not stemmed)
 	 * @param limit
 	 *            maximum number of concepts in the result
 	 * @return a list of matching concepts URIs
@@ -147,70 +152,55 @@ public class OntologyIndex {
 	public List<OntClass> getSimilarMatches(String term, int limit) {
 		List<OntClass> classes = getExactMatches(term);
 		if (log.isDebugEnabled()) {
-		    log.debug("****************** EM: getExactMatches (from LabelIndex) for " + term + " = " + OntologyUtils.getLabels(classes));
+		    log.debug("****************** EM: getSimilarMatches (from LabelIndex) for " + term + " = " + OntologyUtils.getLabels(classes));
 		}
-		// difference between the limit and the current size of the result
-		int free;
-		
+
 		// check if we reached the limit
 		if (classes.size() > limit) {
 			classes = classes.subList(0, limit);
 			return classes;
 		}
-			
 		
 		Set<OntClass> result = new HashSet<OntClass>();
-		List<OntClass> tmp;
 
-		result.addAll(classes);
-		free = limit - result.size();
-		
-		// synonyms
-		if (free > 0) {
+		boolean available = addAllWithLimit(result, classes, limit);
+		if (available) {
 			for (OntClass c : classes) {
-				tmp = getSynonyms(c);
-				if (tmp.size() > free) {
-					result.addAll(tmp.subList(0, free));
-					free = 0;
+				available = addAllWithLimit(result, getSynonyms(c), limit);
+				if (!available) {
 					break;
-				} else {
-					result.addAll(tmp);
-					free = limit - result.size();
 				}
 			}
 		}
-		
-		// children
-		if (free > 0) {
+		if (available) {
 			for (OntClass c : classes) {
-				tmp = getChildren(c);
-				if (tmp.size() > free) {
-					result.addAll(tmp.subList(0, free));
-					free = 0;
+				available = addAllWithLimit(result, getChildren(c), limit);
+				if (!available) {
 					break;
-				} else {
-					result.addAll(tmp);
-					free = limit - result.size();
 				}
 			}
 		}
-			
-		// parents
-		if (free > 0) {
+		if (available) {
 			for (OntClass c : classes) {
-				tmp = getParents(c);
-				if (tmp.size() > free) {
-					result.addAll(tmp.subList(0, free));
-					free = 0;
+				available = addAllWithLimit(result, getParents(c), limit);
+				if (!available) {
 					break;
-				} else {
-					result.addAll(tmp);
-					free = limit - result.size();
 				}
 			}
 		}
 
 		return new ArrayList<OntClass>(result);
+	}
+	
+	// return true, if limit not reached
+	private boolean addAllWithLimit(Set<OntClass> result, List<OntClass> moreItems, int limit) {
+		for (OntClass clazz : moreItems) {
+			result.add(clazz);
+			if (result.size() >= limit) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -219,10 +209,10 @@ public class OntologyIndex {
 	 * duplicates. Never returns <code>null</code>.
 	 * 
 	 * @param term
-	 *            term to be looked up
+	 *            term to be looked up (not stemmed)
 	 * @return a list of matching concepts URIs
 	 */
-	public List<OntClass> getSimilarMatches(String term) {
+	private List<OntClass> getSimilarMatches(String term) {
 		List<OntClass> classes = getExactMatches(term);
 		
 		Set<OntClass> result = new HashSet<OntClass>();
@@ -243,7 +233,7 @@ public class OntologyIndex {
 	 * 
 	 * @return labels of the synonyms
 	 */
-	public List<String> getSimilarMatchLabels(String term) {
+	private List<String> getSimilarMatchLabels(String term) {
 		return OntologyUtils.getLabels(getSimilarMatches(term));
 	}
 
@@ -259,12 +249,21 @@ public class OntologyIndex {
 
 	/**
 	 * @param term
-	 *            term to be looked up
+	 *            term to be looked up (not stemmed)
 	 * @return true iff {@link #getFirstExactMatch(String)} does not return
 	 *         <code>null</code>.
 	 */
-	public boolean hasExactMatches(String term) {
+	private boolean hasExactMatches(String term) {
 		return getFirstExactMatch(term) != null;
+	}
+
+	/**
+	 * @param tokens
+	 *            token to be looked up, already stemmed
+	 * @return.
+	 */
+	public boolean hasExactMatches(List<String> tokens) {
+		return !getFromLabelIndex(implode(tokens)).isEmpty();
 	}
 
 	/**
@@ -273,10 +272,11 @@ public class OntologyIndex {
 	 * concepts. Never returns <code>null</code>.
 	 * 
 	 * @param term
-	 *            term to be looked up
+	 *            term to be looked up (not stemmed)
 	 * @return a list of matching concepts URIs
 	 */
 	// TODO include a more flexible search using Levenshtein for words with a length > 5
+	// only public for tests (yet)
 	public List<OntClass> getExactMatches(String term) {
 		return getFromLabelIndex(stemmer.stem(term));
 	}
@@ -287,7 +287,7 @@ public class OntologyIndex {
 	 * 
 	 * @return labels of the synonyms
 	 */
-	public List<String> getExactMatchLabels(String term) {
+	private List<String> getExactMatchLabels(String term) {
 		return OntologyUtils.getLabels(getExactMatches(term));
 	}
 
@@ -296,7 +296,7 @@ public class OntologyIndex {
 	 * first match. It returns <code>null</code> if no match can be found.
 	 * 
 	 * @param term
-	 *            term to be looked up
+	 *            term to be looked up (not stemmed)
 	 * @return first matching concept or <code>null</code>
 	 */
 	public OntClass getFirstExactMatch(String term) {
@@ -324,7 +324,7 @@ public class OntologyIndex {
 		ExtendedIterator equivIter = clazz.listEquivalentClasses();
 		while(equivIter.hasNext()) {
 			OntClass synonym = (OntClass)equivIter.next();
-			if (!excludeClass(synonym)) {
+			if (!clazz.equals(synonym) && !excludeClass(synonym)) {
 				result.add(synonym);
 			}
 		}
@@ -614,28 +614,16 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	
 	
 	/**
-	 * @param term
-	 *            a term (can consist of multiple words)
-	 * @return true iff prefix is contained in the index.
-	 */
-	public boolean isPrefix(String term) {
-		return isPrefix(Arrays.asList(explode(term)));
-	}
-
-	/**
 	 * Tests, if the concatenation of the given fragments are contained in the
 	 * prefix index. The order is preserved.
+	 * (The fragments must be already stemmed)
 	 * 
 	 * @param fragments
-	 *            a list of terms
+	 *            a list of terms (stemmed)
 	 * @return true iff there is a prefix consisting of
 	 */
 	public boolean isPrefix(Collection<String> fragments) {
-		List<String> stems = new ArrayList<String>();
-		for (String f : fragments) {
-			stems.add(stemmer.stem(f));
-		}
-		return prefixIdx.contains(implode(stems));
+		return prefixIdx.contains(implode(fragments));
 	}
 
 	/**
@@ -644,7 +632,7 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	 * 1<=i<n are prefixes (see {@link #implode(Collection)}.
 	 * 
 	 * @param term
-	 *            a term
+	 *            a term (not stemmed)
 	 * @return the prefix corresponding to a term.
 	 */
 	protected List<String> generatePrefixes(String term) {
@@ -711,7 +699,7 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	 * entry into the index. The key is taken as given.
 	 * 
 	 * @param key
-	 *            a label
+	 *            a label (stemmend)
 	 * @param clazz
 	 *            the URI of a concept
 	 */
@@ -725,14 +713,14 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 		value.toArray(s);
 		
 		labelIdx.put(key, s);
-		log.trace("** Updated index with " + key + " => " + value);
+		log.debug("** Updated index with " + key + " => " + value);
 	}
 	
 	/**
 	 * Adds all prefixes of term to the prefix index.
 	 * 
 	 * @param term
-	 *            a label
+	 *            a label (not stemmed)
 	 */
 	protected void addToPrefixIndex(String term) {
 		List<String> prefixes = generatePrefixes(term);
@@ -748,7 +736,7 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	 * <code>null</code>.
 	 * 
 	 * @param key
-	 *            key to be looked up
+	 *            key to be looked up (stemmed)
 	 * @return list of corresponding URIs
 	 */
 	protected List<OntClass> getFromLabelIndex(String key) {

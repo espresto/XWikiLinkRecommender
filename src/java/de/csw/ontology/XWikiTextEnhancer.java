@@ -25,10 +25,7 @@
  ******************************************************************************/
 package de.csw.ontology;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -36,13 +33,8 @@ import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
-import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.de.CSWGermanAnalyzer;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 
-import de.csw.lucene.ConceptFilter;
+import de.csw.lucene.OntologyConceptAnalyzer;
 import de.csw.util.Config;
 import de.csw.util.PlainTextView;
 import de.csw.util.URLEncoder;
@@ -70,53 +62,44 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	 * system. The search terms are related to the annotated phrase.
 	 */
 	public String enhance(String text) {
-		CSWGermanAnalyzer ga = new CSWGermanAnalyzer();
-		TokenStream ts = null;
 		StringBuilder result = new StringBuilder();
-		
 		PlainTextView plainTextView = new PlainTextView(text);
-		
 		try {
-			Reader r = new BufferedReader(new StringReader(plainTextView.getPlainText()));
-			
-			ts = ga.tokenStream("",	 r);
-			
-			CharTermAttribute charTermAttribute = ts.addAttribute(CharTermAttribute.class);
-			OffsetAttribute offsetAttribute = ts.addAttribute(OffsetAttribute.class);
-			TypeAttribute typeAttribute = ts.addAttribute(TypeAttribute.class);
-			
-			String term;
-			int lastEndIndex = 0;
-			
-			while(ts.incrementToken()) {
-			
-				final int endOtherOffset = plainTextView.getOriginalEndPosition(offsetAttribute.startOffset());
-				final int startTextOffset = plainTextView.getOriginalPosition(offsetAttribute.startOffset());
-				final int endTextOffset = plainTextView.getOriginalEndPosition(offsetAttribute.endOffset());
-				
-				result.append(text.substring(lastEndIndex, endOtherOffset));
-				term = String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length());
-				if (log.isDebugEnabled()) {
-				    log.debug("****EM: XWikiTextEnhancer.enhance2, concept: "+ term + "\nstartOffset(): "+ endOtherOffset 
-				            + "\nendOffset(): "+offsetAttribute.endOffset()+"\ntoken.termBuffer(): "+ new String(charTermAttribute.buffer()) + "\nToken.term: "+charTermAttribute+ "\nToken.type: "+typeAttribute.type());
+
+			OntologyConceptAnalyzer oca = new OntologyConceptAnalyzer(plainTextView.getPlainText());
+			try {
+				int lastEndIndex = 0;
+				while (oca.hasNextMatch()) {
+
+					final int startTextOffset = plainTextView.getOriginalPosition(oca.startOfMatch());
+					final int endTextOffset = plainTextView.getOriginalEndPosition(oca.endOfMatch());
+
+					result.append(text.substring(lastEndIndex, startTextOffset));
+					final String term = oca.token(); // String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length());
+					if (log.isDebugEnabled()) {
+						log.debug("****EM: XWikiTextEnhancer.enhance2, concept: " + term + "\nstartOffset(): " + startTextOffset + "\nendOffset(): "
+								+ endTextOffset + "\nToken.term: " + term + "\nToken.type: " + oca.isConcept());
+					}
+
+					if (oca.isConcept()) {
+						log.debug("Annotating concept: " + term);
+						annotateWithSearch(result, text.substring(startTextOffset, endTextOffset), term);
+					} else {
+						result.append(text.substring(startTextOffset, endTextOffset));
+					}
+
+					lastEndIndex = endTextOffset;
 				}
-				
-				if (typeAttribute.type().equals(ConceptFilter.CONCEPT_TYPE)) {
-					log.debug("Annotating concept: " + term);
-					annotateWithSearch(result, text.substring(startTextOffset, endTextOffset), term);
-				} else {
-					result.append(text.substring(startTextOffset, endTextOffset));
-				}
-					
-				lastEndIndex = plainTextView.getOriginalPosition(offsetAttribute.endOffset());
+				result.append(text.subSequence(lastEndIndex, text.length()));
+			} finally {
+				oca.close();
 			}
-			result.append(text.subSequence(lastEndIndex, text.length()));
+
 		} catch (IOException e) {
 			log.error("Error while processing the page content", e);
 		}
-		log.debug("****EM: XWikiTextEnhancer.enhance4, result: "+ result.toString());		
-		
-		ga.close();
+		log.debug("****EM: XWikiTextEnhancer.enhance4, result: " + result.toString());
+
 		return result.toString();
 	}
 	
@@ -134,6 +117,8 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	 *            the base form of the term
 	 */
 	protected void annotateWithSearch(StringBuilder sb, String term, String stemBase) {
+		
+		// FIXME: here use stemBase instead to extract labels, and avoid matching  the "myself"
 		List<String> matches = index.getSimilarMatchLabels(term, MAX_SIMILAR_CONCEPTS);
 
 		if (matches.isEmpty()) {
@@ -149,7 +134,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		boolean afterFirstTerm = false;
 		while (it.hasNext()) {
 			String similarTerm = it.next();
-			if (!stemBase.equals(this.index.getStemmer().stem(similarTerm))) {
+			if (!stemBase.equals(this.index.getStemmer().stem(similarTerm))) {  // duh ! nope! why ?
 				if (afterFirstTerm) { sb.append(", "); }
 				sb.append(similarTerm);
 				afterFirstTerm = true;

@@ -48,7 +48,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
@@ -126,7 +125,7 @@ public final class ConceptFilter extends TokenFilter {
 		}
 
 		// if we have a match ...
-		if (index.hasExactMatches(StringUtils.join(terms.toArray(), OntologyIndex.PREFIX_SEPARATOR))) {
+		if (index.hasExactMatches(terms)) {
 
 			// ..then we consume all elements in the look ahead, if present
 			if (!lookAhead.isEmpty()) {
