@@ -115,7 +115,7 @@ public class OntologyIndexTest extends TestBase {
 	}
 	
 	
-	@Test
+	/*@Test
 	public void testImplode() {
 		Assert.assertArrayEquals("explode two words",
 				new String[]{"Two", "Words"}, index.explode("Two Words"));
@@ -123,5 +123,5 @@ public class OntologyIndexTest extends TestBase {
 				new String[]{"You,", "or", "me?"}, index.explode("You, or me?"));
 		Assert.assertArrayEquals("explode with apostroph",
 				new String[]{"No,", "can't", "say", "why!"}, index.explode("No, can't say why!"));
-	}
+	}*/
 }

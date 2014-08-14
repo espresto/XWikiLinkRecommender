@@ -299,7 +299,7 @@ public class OntologyIndex {
 	 *            term to be looked up (not stemmed)
 	 * @return first matching concept or <code>null</code>
 	 */
-	public OntClass getFirstExactMatch(String term) {
+	private OntClass getFirstExactMatch(String term) {
 		List<OntClass> matches =  getFromLabelIndex(stemmer.stem(term));
 		return matches.size() > 0 ? matches.get(0) : null;
 	}
@@ -666,7 +666,7 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	 *            a term
 	 * @return a list of fragments
 	 */
-	public String[] explode(String term) {
+	private String[] explode(String term) {
 		return StringUtils.split(term);
 	}
 
@@ -679,7 +679,7 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	 *            second fragment
 	 * @return concatenation
 	 */
-	protected String implode(String f1, String f2) {
+	private String implode(String f1, String f2) {
 		return f1 + PREFIX_SEPARATOR + f2;
 	}
 
@@ -690,7 +690,7 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	 *            collection of fragments
 	 * @return concatenation
 	 */
-	protected String implode(Collection<String> c) {
+	private String implode(Collection<String> c) {
 		return StringUtils.join(c, PREFIX_SEPARATOR);
 	}
 	
@@ -703,7 +703,7 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	 * @param clazz
 	 *            the URI of a concept
 	 */
-	protected void addToLabelIndex(String key, OntClass clazz) {
+	private void addToLabelIndex(String key, OntClass clazz) {
 		Set<OntClass> value = new HashSet<OntClass>();
 		if (labelIdx.containsKey(key)) {
 			value.addAll(Arrays.asList(labelIdx.get(key)));
@@ -722,7 +722,7 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	 * @param term
 	 *            a label (not stemmed)
 	 */
-	protected void addToPrefixIndex(String term) {
+	private void addToPrefixIndex(String term) {
 		List<String> prefixes = generatePrefixes(term);
 		if (!prefixes.isEmpty()) {
 			prefixIdx.addAll(prefixes);
