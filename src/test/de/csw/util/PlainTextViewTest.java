@@ -53,7 +53,10 @@ public class PlainTextViewTest {
     
     @Test
     public void needsWork() {
+    	// barely works by accident
         assertPlainText("A Macro  inside", "A Macro {{velocity}}containing a [[Link]]{{/velocity}} inside");        
+        // here we fail:
+        // assertPlainText("A Link  inside", "A Link [[{{velocity}}with a macro{{/velocity}}]] inside");        
     }
 
     private void assertPlainText(String expectedPlainText, String text) {
