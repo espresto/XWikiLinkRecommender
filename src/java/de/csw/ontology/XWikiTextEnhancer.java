@@ -27,7 +27,6 @@ package de.csw.ontology;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 import com.hp.hpl.jena.ontology.OntClass;
@@ -36,6 +35,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
 import de.csw.lucene.OntologyConceptAnalyzer;
+import de.csw.ontology.util.OntologyUtils;
 import de.csw.util.Config;
 import de.csw.util.PlainTextView;
 import de.csw.util.URLEncoder;
@@ -48,12 +48,12 @@ import de.csw.util.URLEncoder;
  */
 public class XWikiTextEnhancer implements TextEnhancer {
 	static final Logger log = Logger.getLogger(XWikiTextEnhancer.class);
-	
+
 	static final int MAX_SIMILAR_CONCEPTS = Config.getIntAppProperty(Config.LUCENE_MAXSEARCHTERMS);
 	static final String LUCENE_URL = Config.getAppProperty(Config.LUCENE_URL);
-	
+
 	OntologyIndex index;
-	
+
 	public XWikiTextEnhancer() {
 		index = OntologyIndex.get();
 	}
@@ -79,7 +79,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 					final List<OntClass> concepts = oca.concepts();
 					if (log.isDebugEnabled()) {
 						log.debug("****EM: XWikiTextEnhancer.enhance2, concept: " + concepts + "\nstartOffset(): " + startTextOffset + "\nendOffset(): "
-								+ endTextOffset + "\norigText: " + text.substring(startTextOffset, endTextOffset) +  "\nToken.term: " + concepts + "\nToken.type: " + oca.isConcept());
+								+ endTextOffset + "\norigText: " + text.substring(startTextOffset, endTextOffset));
 					}
 
 					if (oca.isConcept()) {
@@ -103,8 +103,6 @@ public class XWikiTextEnhancer implements TextEnhancer {
 
 		return result.toString();
 	}
-	
-
 
 	/**
 	 * Annotates the term by linking <code>term</code> to the search page of the
@@ -118,8 +116,10 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	 *            the concepts found for the term
 	 */
 	protected void annotateWithSearch(StringBuilder sb, String term, List<OntClass> concepts) {
-		
-		List<String> matches = index.getSimilarMatchLabels(concepts, MAX_SIMILAR_CONCEPTS);
+
+		List<String> originalTerms = OntologyUtils.getLabels(concepts);
+		List<OntClass> similarConcepts = index.getSimilarMatches(concepts, MAX_SIMILAR_CONCEPTS);
+		List<String> matches = OntologyUtils.getLabels(similarConcepts);
 
 		if (matches.isEmpty()) {
 			sb.append(term);
@@ -129,23 +129,20 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		sb.append("[[").append(term);
 		sb.append(">>").append(getSearchURL(matches));
 		sb.append("||class=\"similarconcept\"");
-		Iterator<String> it = matches.listIterator();
 		sb.append(" title=\"Suche nach den verwandten Begriffen: ");
 		boolean afterFirstTerm = false;
-		while (it.hasNext()) {
-			String similarTerm = it.next();
-			// avoid to repeat the original term: there should be a better way than to reanalyse the concept
-			List<String> similarTermTokens = OntologyConceptAnalyzer.tokenize(similarTerm);
-			List<OntClass> similarConcepts = (similarTermTokens == null)? null: index.getExactMatches(similarTermTokens);
-			if (similarTermTokens != null && !similarConcepts.equals(concepts)) {
-				if (afterFirstTerm) { sb.append(", "); }
+		for (String similarTerm : matches) {
+			if (!originalTerms.contains(similarTerm)) {
+				if (afterFirstTerm) {
+					sb.append(", ");
+				}
 				sb.append(similarTerm);
 				afterFirstTerm = true;
 			}
 		}
 		sb.append("\"]]");
 	}
-	
+
 	/**
 	 * Creates a link to the search wiki page.
 	 * 
@@ -158,7 +155,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		List<String> phrasesQuoted = new ArrayList<>(terms.size());
 		for (String term : terms) {
 			if (term.indexOf(' ') != -1) {
-				term = '"' + term +'"';
+				term = '"' + term + '"';
 			}
 			phrasesQuoted.add(term);
 		}
