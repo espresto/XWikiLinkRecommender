@@ -480,7 +480,7 @@ public class OntologyIndex {
 						ind.getOntClass().getLocalName()));
 			}
 
-			if (excludeIndividual(ind)) {
+			if (excludeIndividual(ind) || excludeClass(ind.getOntClass())) {
 				continue;
 			}
 
