@@ -25,11 +25,12 @@
  ******************************************************************************/
 package de.csw.ontology;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+
+import com.hp.hpl.jena.ontology.OntClass;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -75,15 +76,15 @@ public class XWikiTextEnhancer implements TextEnhancer {
 					final int endTextOffset = plainTextView.getOriginalEndPosition(oca.endOfMatch());
 
 					result.append(text.substring(lastEndIndex, startTextOffset));
-					final String term = oca.token();
+					final List<OntClass> concepts = oca.concepts();
 					if (log.isDebugEnabled()) {
-						log.debug("****EM: XWikiTextEnhancer.enhance2, concept: " + term + "\nstartOffset(): " + startTextOffset + "\nendOffset(): "
-								+ endTextOffset + "\nToken.term: " + term + "\nToken.type: " + oca.isConcept());
+						log.debug("****EM: XWikiTextEnhancer.enhance2, concept: " + concepts + "\nstartOffset(): " + startTextOffset + "\nendOffset(): "
+								+ endTextOffset + "\norigText: " + text.substring(startTextOffset, endTextOffset) +  "\nToken.term: " + concepts + "\nToken.type: " + oca.isConcept());
 					}
 
 					if (oca.isConcept()) {
-						log.debug("Annotating concept: " + term);
-						annotateWithSearch(result, text.substring(startTextOffset, endTextOffset), term);
+						log.debug("Annotating concept: " + concepts);
+						annotateWithSearch(result, text.substring(startTextOffset, endTextOffset), concepts);
 					} else {
 						result.append(text.substring(startTextOffset, endTextOffset));
 					}
@@ -95,7 +96,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 				oca.close();
 			}
 
-		} catch (IOException e) {
+		} catch (Exception e) {
 			log.error("Error while processing the page content", e);
 		}
 		log.debug("****EM: XWikiTextEnhancer.enhance4, result: " + result.toString());
@@ -113,13 +114,12 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	 *            the string builder the result is appended to
 	 * @param term
 	 *            a term
-	 * @param stemBase 
-	 *            the base form of the term
+	 * @param concepts 
+	 *            the concepts found for the term
 	 */
-	protected void annotateWithSearch(StringBuilder sb, String term, String stemBase) {
+	protected void annotateWithSearch(StringBuilder sb, String term, List<OntClass> concepts) {
 		
-		// FIXME: here maybe use stemBase instead to extract labels, and avoid matching "myself"
-		List<String> matches = index.getSimilarMatchLabels(term, MAX_SIMILAR_CONCEPTS);
+		List<String> matches = index.getSimilarMatchLabels(concepts, MAX_SIMILAR_CONCEPTS);
 
 		if (matches.isEmpty()) {
 			sb.append(term);
@@ -134,7 +134,10 @@ public class XWikiTextEnhancer implements TextEnhancer {
 		boolean afterFirstTerm = false;
 		while (it.hasNext()) {
 			String similarTerm = it.next();
-			if (!stemBase.equals(this.index.getStemmer().stem(similarTerm))) {
+			// avoid to repeat the original term: there should be a better way than to reanalyse the concept
+			List<String> similarTermTokens = OntologyConceptAnalyzer.tokenize(similarTerm);
+			List<OntClass> similarConcepts = (similarTermTokens == null)? null: index.getExactMatches(similarTermTokens);
+			if (similarTermTokens != null && !similarConcepts.equals(concepts)) {
 				if (afterFirstTerm) { sb.append(", "); }
 				sb.append(similarTerm);
 				afterFirstTerm = true;

@@ -53,34 +53,30 @@ import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.util.AttributeSource;
 
 import de.csw.ontology.OntologyIndex;
 
 /**
  * A filter that detects concepts from an ontology in the token stream. A
- * concept token is assigned the type {@value #CONCEPT_TYPE}.
+ * concept attribute is filled with he concepts found.
  * 
  * @author rheese
  * 
  */
 public final class ConceptFilter extends TokenFilter {
-	static final Logger log = Logger.getLogger(ConceptFilter.class);
-	
-	/** token type of a concept */
-	public static final String CONCEPT_TYPE = "concept"; 
+	private static final Logger log = Logger.getLogger(ConceptFilter.class);
 
-	private OntologyIndex index;
+	private final OntologyIndex index;
 
 	/** Tokens that have been read ahead */
 	private final Queue<AttributeSource.State> queue = new LinkedList<AttributeSource.State>();
 
 	/** the attributes of the token which the filter is currently reading */
-	private final CharTermAttribute charTermAttribute;
-	private final OffsetAttribute offsetAttribute;
-	private final TypeAttribute typeAttribute;
-    
+	private final CharTermAttribute charTermAttribute = addAttribute(CharTermAttribute.class);
+	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
+	private final AfterPunctuationAttribute punctAttribute = addAttribute(AfterPunctuationAttribute.class);
+	private final ConceptAttribute conceptAttribute = addAttribute(ConceptAttribute.class);
 
 	/**
 	 * Build a ConceptFilter that uses a given ontology index
@@ -93,13 +89,8 @@ public final class ConceptFilter extends TokenFilter {
 	public ConceptFilter(TokenStream in, OntologyIndex oi) {
 		super(in);
 		index = oi;
-		
-		charTermAttribute = input.getAttribute(CharTermAttribute.class);
-		offsetAttribute = input.getAttribute(OffsetAttribute.class);
-		typeAttribute = input.getAttribute(TypeAttribute.class);
 	}
 
-	
 	/**
 	 * advances to the next token in the stream.
 	 * Takes into account that terms from the ontology might be constructed
@@ -118,34 +109,43 @@ public final class ConceptFilter extends TokenFilter {
 		List<String> terms = new ArrayList<String>();
 		terms.add(String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
 
-		while (index.isPrefix(terms) && hasMoreToken) {
+		boolean noPunctuationInterrupt = true;
+		while (index.isPrefix(terms) && hasMoreToken && noPunctuationInterrupt) {
 			lookAhead.add(captureState());
 			hasMoreToken = innerNextToken();
-			terms.add(String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
+			if (hasMoreToken) {
+				terms.add(String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
+				noPunctuationInterrupt = !punctAttribute.isAfterPunct();
+			}
 		}
+		// TODO: if we have matches for "A" and "A B", but see "A, B", this does not find "A" (yet)
 
+		
 		// if we have a match ...
-		if (index.hasExactMatches(terms)) {
+		if (noPunctuationInterrupt && index.hasExactMatches(terms)) {
 
-			// ..then we consume all elements in the look ahead, if present
+			// ... then we consume all elements in the look ahead, if present
 			if (!lookAhead.isEmpty()) {
 				int maxEndOffset = offsetAttribute.endOffset();
 				restoreState(lookAhead.poll());
-				terms.remove(0); // already present in current token
-				for (String term : terms) {
-					charTermAttribute.append(OntologyIndex.PREFIX_SEPARATOR);
-					charTermAttribute.append(term);
-				}
+				// first term already present in current token; append the rest
+				// XXX do we really need to do this here? we have all the information in the tokens
+				//for (String term : terms.subList(1, terms.size())) {
+				//	charTermAttribute.append(OntologyIndex.PREFIX_SEPARATOR);
+				//	charTermAttribute.append(term);
+				//}
 
 				offsetAttribute.setOffset(offsetAttribute.startOffset(), maxEndOffset);
 			}
-			typeAttribute.setType(CONCEPT_TYPE);
-			if (log.isTraceEnabled()) {
-				log.trace("Concept token recognized: " + String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
-			}
-			
-		} else {
 
+			// important: only set attributes after we have finished messing with "restoreState"
+			conceptAttribute.setConcepts(index.getExactMatches(terms));
+			if (log.isTraceEnabled()) {
+				log.trace("Concept token recognized: " + terms);
+			}
+
+		} else {
+			conceptAttribute.setConcepts(null);
 			// .. else we push back in the queue the tokens already read
 			if (!lookAhead.isEmpty()) {
 				lookAhead.add(captureState());
@@ -165,6 +165,11 @@ public final class ConceptFilter extends TokenFilter {
 			return true;
 		}
 		return input.incrementToken();
+	}
+
+	public void reset() throws IOException {
+		super.reset();
+		queue.clear();
 	}
 
 }

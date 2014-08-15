@@ -36,12 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang.StringUtils;
-import org.apache.log4j.Logger;
-import org.apache.lucene.analysis.de.GermanLightStemmerWrapperFactory;
-import org.apache.lucene.analysis.de.GermanStemmer;
-import org.apache.lucene.analysis.de.Stemmer;
-
 import com.hp.hpl.jena.ontology.Individual;
 import com.hp.hpl.jena.ontology.OntClass;
 import com.hp.hpl.jena.ontology.OntModel;
@@ -50,6 +44,10 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.util.iterator.ExtendedIterator;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
+
+import de.csw.lucene.OntologyConceptAnalyzer;
 import de.csw.ontology.util.OntologyUtils;
 import de.csw.util.Config;
 
@@ -61,26 +59,23 @@ import de.csw.util.Config;
  */
 public class OntologyIndex {
 	static final Logger log = Logger.getLogger(OntologyIndex.class);
-	
+
 	/** character that is used to concatenate two fragments in the context of a prefix index */
 	public static final char PREFIX_SEPARATOR = ' ';
-	
+
 	static OntologyIndex instance;
-	
-	/** Stemmer to get discriminators from a term. By default it is a GermanStemmer */
-	Stemmer stemmer;
 
 	/** Index for mapping labels (in its stemmed version) to concepts of the ontology. */
 	// TODO encapsulate in a separate class
 	Map<String, OntClass[]> labelIdx = new HashMap<String, OntClass[]>();
-	
+
 	/** The set contains all prefixes of the concepts, see {@link #generatePrefixes(String)} */
 	// TODO encapsulate in a separate class
-	Set<String> prefixIdx = new HashSet<String>(); 
-	
+	Set<String> prefixIdx = new HashSet<String>();
+
 	/** Jena model of the ontology */
 	OntModel model;
-	
+
 	/**
 	 * Use {@link #get()} to retrieve an instance. The constructor creates an
 	 * instance containing an empty ontology model.
@@ -91,18 +86,13 @@ public class OntologyIndex {
 	//public final String nameSpace_qmt ="http://ontologie.datenlabor-berlin.de/CSC/2014/3/qmt";
 
 	private OntologyIndex() {
-//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM);
-//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);	       funktioniert, equivalentClass nur in eine Richtung
-//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_DL_MEM_RDFS_INF);	//RDF RuleReasoner
-//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_TRANS_INF);	//RDF RuleReasoner
-//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_RULE_INF);	//OWL RuleReasoner - symmetric equivalentClass
-//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM_RDFS_INF);	//OWL RuleReasoner - keine equivalentClass
-		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM_RULES_INF);	//OWL Lite RuleReasoner - symmetric equivalentClass
-		if (Config.getBooleanAppProperty(Config.USE_LIGHT_STEMMER)) {
-			stemmer = GermanLightStemmerWrapperFactory.forGermanLightStemmer();			
-		} else {
-			stemmer = new GermanStemmer();
-		}
+		//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM);
+		//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);	       funktioniert, equivalentClass nur in eine Richtung
+		//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_DL_MEM_RDFS_INF);	//RDF RuleReasoner
+		//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_TRANS_INF);	//RDF RuleReasoner
+		//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_RULE_INF);	//OWL RuleReasoner - symmetric equivalentClass
+		//		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM_RDFS_INF);	//OWL RuleReasoner - keine equivalentClass
+		model = ModelFactory.createOntologyModel(OntModelSpec.OWL_LITE_MEM_RULES_INF); //OWL Lite RuleReasoner - symmetric equivalentClass
 	}
 
 	/**
@@ -127,40 +117,28 @@ public class OntologyIndex {
 	public void setModel(OntModel om) {
 		this.model = om;
 	}
-	
-	
-	/**
-	 * @return the stemmer used in the index
-	 */
-	public Stemmer getStemmer() {
-		return stemmer;
-	}
 
 	/**
-	 * Look up <code>term</code> in the ontology and return a list of similar
+	 * Starting from the <code>classes</code> in the ontology return a list of similar
 	 * concepts (URIs) that corresponds to the term. The result is limited to
 	 * <code>limit</code> number of concepts. The order is exact matches,
 	 * synonyms, children, parents. The list does not contain duplicates. Never
 	 * returns <code>null</code>.
 	 * 
-	 * @param term
-	 *            term to be looked up (not stemmed)
+	 * @param clases
+	 *            the concepts whose similar concepts are looked for, should not be null
 	 * @param limit
 	 *            maximum number of concepts in the result
 	 * @return a list of matching concepts URIs
 	 */
-	public List<OntClass> getSimilarMatches(String term, int limit) {
-		List<OntClass> classes = getExactMatches(term);
-		if (log.isDebugEnabled()) {
-		    log.debug("****************** EM: getSimilarMatches (from LabelIndex) for " + term + " = " + OntologyUtils.getLabels(classes));
-		}
+	public List<OntClass> getSimilarMatches(List<OntClass> classes, int limit) {
 
 		// check if we reached the limit
 		if (classes.size() > limit) {
 			classes = classes.subList(0, limit);
 			return classes;
 		}
-		
+
 		Set<OntClass> result = new HashSet<OntClass>();
 
 		boolean available = addAllWithLimit(result, classes, limit);
@@ -191,7 +169,7 @@ public class OntologyIndex {
 
 		return new ArrayList<OntClass>(result);
 	}
-	
+
 	// return true, if limit not reached
 	private boolean addAllWithLimit(Set<OntClass> result, List<OntClass> moreItems, int limit) {
 		for (OntClass clazz : moreItems) {
@@ -205,25 +183,23 @@ public class OntologyIndex {
 
 	/**
 	 * Look up <code>term</code> in the ontology and return a list of similar
-	 * concepts (URIs) that corresponds to the term. The list does not contain
+	 * concepts that corresponds to the term. The list does not contain
 	 * duplicates. Never returns <code>null</code>.
 	 * 
-	 * @param term
-	 *            term to be looked up (not stemmed)
-	 * @return a list of matching concepts URIs
+	 * @param classes the classes where similar concepts are looked for. should not be null
+	 * @return a list of matching concepts
 	 */
-	private List<OntClass> getSimilarMatches(String term) {
-		List<OntClass> classes = getExactMatches(term);
-		
+	private List<OntClass> getSimilarMatches(List<OntClass> classes) {
+
 		Set<OntClass> result = new HashSet<OntClass>();
 		result.addAll(classes);
-		
+
 		for (OntClass c : classes) {
 			result.addAll(getSynonyms(c));
 			result.addAll(getChildren(c));
 			result.addAll(getParents(c));
 		}
-		
+
 		return new ArrayList<OntClass>(result);
 	}
 
@@ -233,8 +209,8 @@ public class OntologyIndex {
 	 * 
 	 * @return labels of the synonyms
 	 */
-	private List<String> getSimilarMatchLabels(String term) {
-		return OntologyUtils.getLabels(getSimilarMatches(term));
+	public List<String> getSimilarMatchLabels(List<OntClass> classes) {
+		return OntologyUtils.getLabels(getSimilarMatches(classes));
 	}
 
 	/**
@@ -243,27 +219,18 @@ public class OntologyIndex {
 	 * 
 	 * @return labels of the synonyms
 	 */
-	public List<String> getSimilarMatchLabels(String term, int limit) {
-		return OntologyUtils.getLabels(getSimilarMatches(term, limit));
-	}
-
-	/**
-	 * @param term
-	 *            term to be looked up (not stemmed)
-	 * @return true iff {@link #getFirstExactMatch(String)} does not return
-	 *         <code>null</code>.
-	 */
-	private boolean hasExactMatches(String term) {
-		return getFirstExactMatch(term) != null;
+	public List<String> getSimilarMatchLabels(List<OntClass> classes, int limit) {
+		return OntologyUtils.getLabels(getSimilarMatches(classes, limit));
 	}
 
 	/**
 	 * @param tokens
-	 *            token to be looked up, already stemmed
-	 * @return.
+	 *            tokens to be looked up
+	 * @return true iff {@link #getFirstExactMatch(String)} does not return
+	 *         <code>null</code>.
 	 */
 	public boolean hasExactMatches(List<String> tokens) {
-		return !getFromLabelIndex(implode(tokens)).isEmpty();
+		return !getFromLabelIndex(tokens).isEmpty();
 	}
 
 	/**
@@ -271,36 +238,25 @@ public class OntologyIndex {
 	 * (URIs) that corresponds to the term. It does not search for similar
 	 * concepts. Never returns <code>null</code>.
 	 * 
-	 * @param term
-	 *            term to be looked up (not stemmed)
-	 * @return a list of matching concepts URIs
+	 * @param tokens
+	 *            tokens to be looked up
+	 * @return a list of matching concepts
 	 */
 	// TODO include a more flexible search using Levenshtein for words with a length > 5
-	// only public for tests (yet)
-	public List<OntClass> getExactMatches(String term) {
-		return getFromLabelIndex(stemmer.stem(term));
+	public List<OntClass> getExactMatches(List<String> tokens) {
+		return getFromLabelIndex(tokens);
 	}
 
 	/**
-	 * Similar to {@link #getExactMatches(String)}, but returns the labels
-	 * instead of the URIs. The list contains no duplicates.
-	 * 
-	 * @return labels of the synonyms
-	 */
-	private List<String> getExactMatchLabels(String term) {
-		return OntologyUtils.getLabels(getExactMatches(term));
-	}
-
-	/**
-	 * Similar to {@link #getExactMatches(String)} but does only return the
+	 * Similar to {@link #getExactMatches(List<String>)} but only returns the
 	 * first match. It returns <code>null</code> if no match can be found.
 	 * 
-	 * @param term
-	 *            term to be looked up (not stemmed)
+	 * @param tokens
+	 *            tokens to be looked up
 	 * @return first matching concept or <code>null</code>
 	 */
-	private OntClass getFirstExactMatch(String term) {
-		List<OntClass> matches =  getFromLabelIndex(stemmer.stem(term));
+	public OntClass getFirstExactMatch(List<String> tokens) {
+		List<OntClass> matches = getExactMatches(tokens);
 		return matches.size() > 0 ? matches.get(0) : null;
 	}
 
@@ -317,30 +273,20 @@ public class OntologyIndex {
 	public List<OntClass> getSynonyms(OntClass clazz) {
 		if (clazz == null)
 			return Collections.emptyList();
-		
+
 		Set<OntClass> result = new HashSet<OntClass>();
 
 		// the one way
 		ExtendedIterator equivIter = clazz.listEquivalentClasses();
-		while(equivIter.hasNext()) {
-			OntClass synonym = (OntClass)equivIter.next();
+		while (equivIter.hasNext()) {
+			OntClass synonym = (OntClass) equivIter.next();
 			if (!clazz.equals(synonym) && !excludeClass(synonym)) {
 				result.add(synonym);
 			}
 		}
 
-		log.debug("*********EM: OntologyIndex.getSynonyms(Synonyme): listEquivalentClasses() für class: "+ clazz.getLocalName() + " = "+ result);		
+		log.debug("*********EM: OntologyIndex.getSynonyms(Synonyme): listEquivalentClasses() für class: " + clazz.getLocalName() + " = " + result);
 		return new ArrayList<OntClass>(result);
-	}
-
-	/**
-	 * Similar to {@link #getSynonyms(OntClass)}, but returns the labels
-	 * instead of the URIs. The list contains no duplicates.
-	 * 
-	 * @return labels of the synonyms
-	 */
-	public List<String> getSynonymLabels(OntClass clazz) {
-		return OntologyUtils.getLabels(getSynonyms(clazz));
 	}
 
 	/**
@@ -356,33 +302,24 @@ public class OntologyIndex {
 	public List<OntClass> getParents(OntClass clazz) {
 		if (clazz == null)
 			return Collections.emptyList();
-		
+
 		List<OntClass> result = new ArrayList<OntClass>();
 
 		ExtendedIterator parentIter = clazz.listSuperClasses(true);
 		while (parentIter.hasNext()) {
 			OntClass parent = (OntClass) parentIter.next();
 			if (log.isDebugEnabled()) {
-			    log.debug("************* EM: getParents: for: "+ clazz.getLocalName()+ " = "+ parent.getLocalName()+ " is anonymous Class?: "+ parent.isAnon());
+				log.debug("************* EM: getParents: for: " + clazz.getLocalName() + " = " + parent.getLocalName() + " is anonymous Class?: "
+						+ parent.isAnon());
 			}
-			
+
 			if (excludeClass(parent)) {
-			    continue;
+				continue;
 			}
 			result.add(parent);
 		}
 
 		return result;
-	}
-
-	/**
-	 * Similar to {@link #getParents(OntClass)}, but returns the labels
-	 * instead of the URIs. The list contains no duplicates.
-	 * 
-	 * @return labels of the parents
-	 */
-	public List<String> getParentLabels(OntClass clazz) {
-		return OntologyUtils.getLabels(getParents(clazz));
 	}
 
 	/**
@@ -398,11 +335,11 @@ public class OntologyIndex {
 	public List<OntClass> getChildren(OntClass clazz) {
 		if (clazz == null)
 			return Collections.emptyList();
-		
+
 		List<OntClass> result = new ArrayList<OntClass>();
 
 		ExtendedIterator childIter = clazz.listSubClasses(true);
-		while(childIter.hasNext()) {
+		while (childIter.hasNext()) {
 			OntClass child = (OntClass) childIter.next();
 			if (!excludeClass(child)) {
 				result.add(child);
@@ -410,16 +347,6 @@ public class OntologyIndex {
 		}
 
 		return result;
-	}
-
-	/**
-	 * Similar to {@link #getChildren(OntClass)} but returns the labels
-	 * instead of the URIs. The list contains no duplicates.
-	 * 
-	 * @return labels of the children
-	 */
-	public List<String> getChildrenLabels(OntClass clazz) {
-		return OntologyUtils.getLabels(getChildren(clazz));
 	}
 
 	/**
@@ -440,12 +367,11 @@ public class OntologyIndex {
 	 *            OntModel om
 	 */
 	public void load(OntModel om) {
-		setModel(om);   // set the model
+		setModel(om); // set the model
 		log.debug("(re)load model and create onto-index (from virtuoso)");
 		createIndex();
 	}
-	
-	
+
 	/**
 	 * Adds a new entry to all indexes, e.g., label index, prefix index. The
 	 * labels are retrieved from the URI.
@@ -454,85 +380,87 @@ public class OntologyIndex {
 		log.debug("Creating index");
 		if (model.size() == 0)
 			return;
-		
-		log.debug("***** INDEXES: *****, model has: " + model.size() + " Einträge");        
+
+		log.debug("***** INDEXES: *****, model has: " + model.size() + " Einträge");
 
 		ExtendedIterator<OntClass> it = model.listClasses();
 		while (it.hasNext()) {
-		    OntClass ontClass = it.next();
-			
+			OntClass ontClass = it.next();
+
 			if (excludeClass(ontClass)) {
-			    continue;
+				continue;
 			}
-			
+
 			List<String> labels = OntologyUtils.getLabels(ontClass);
 			log.debug("###############  adding labels " + labels);
-			// TODO maybe we should use the GermanAnalyzer at this place to have stop words removed
 			for (String label : labels) {
-			    log.debug("label: "+label);					
-			    addToLabelIndex(stemmer.stem(label), ontClass);
-			    addToPrefixIndex(label);
+				log.debug("label: " + label);
+				// TODO here we must use the same analyzer as some clients that call us later
+				// is there any way to enforce this ?
+				List<String> tokens = OntologyConceptAnalyzer.tokenize(label);
+				if (tokens != null) {
+					addToLabelIndex(tokens, ontClass);
+					addToPrefixIndex(tokens);
+				}
 			}
 		}
-		addIndividualsToIndex();    //EM: add Individual label
+		addIndividualsToIndex(); //EM: add Individual label
 		log.debug("done");
-log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());		
+		log.debug("Anzahl der keys im Labelindex: " + labelIdx.size());
 
 	}
 
-
 	/**
-	 * check for classes not to incldie in the index
+	 * check for classes to exclude in the index
 	 * @param c
 	 * @return
 	 */
 	private boolean excludeClass(OntClass c) {
-        if (log.isDebugEnabled()) {
-            log.debug(String.format("****** OntClass.localName: %s, with Namespace : %s, with URI: %s",
-                         c.getLocalName(), c.getNameSpace(), c.getURI()));
-        }
+		if (log.isDebugEnabled()) {
+			log.debug(String.format("****** OntClass.localName: %s, with Namespace : %s, with URI: %s", c.getLocalName(), c.getNameSpace(), c.getURI()));
+		}
 
-        if (c.isAnon()) {
-            log.debug("############### exclude anon " + c);
-            return true;
-        }
-        
-        List<String> includeNamespaces = Config.getListProperty(Config.ONTOLOGY_INCLUDED_NAMESPACES);
-        if (!includeNamespaces.isEmpty()) {
-            // Nur die Klassen aus der Ontologie benutzen
-            if (c.getNameSpace() == null || !includeNamespaces.contains(c.getNameSpace())) {
-                if (log.isDebugEnabled()) {
-                    log.debug("###############  exclude class " + c.getLocalName() + "; namespace not included");
-                }
-                return true;
-            }
-        } else {
-            List<String> excludeNamespaces = Config.getListProperty(Config.ONTOLOGY_EXCLUDED_NAMESPACES);
-            if (c.getNameSpace() == null || excludeNamespaces.contains(c.getNameSpace())) {
-                if (log.isDebugEnabled()) {
-                    log.debug("###############  exclude class " + c.getLocalName() + "; namespace excluded");
-                }
-                return true;
-            }
+		if (c.isAnon()) {
+			log.debug("############### exclude anon " + c);
+			return true;
+		}
 
-        }
+		List<String> includeNamespaces = Config.getListProperty(Config.ONTOLOGY_INCLUDED_NAMESPACES);
+		if (!includeNamespaces.isEmpty()) {
+			// Nur die Klassen aus der Ontologie benutzen
+			if (c.getNameSpace() == null || !includeNamespaces.contains(c.getNameSpace())) {
+				if (log.isDebugEnabled()) {
+					log.debug("###############  exclude class " + c.getLocalName() + "; namespace not included");
+				}
+				return true;
+			}
+		} else {
+			List<String> excludeNamespaces = Config.getListProperty(Config.ONTOLOGY_EXCLUDED_NAMESPACES);
+			if (c.getNameSpace() == null || excludeNamespaces.contains(c.getNameSpace())) {
+				if (log.isDebugEnabled()) {
+					log.debug("###############  exclude class " + c.getLocalName() + "; namespace excluded");
+				}
+				return true;
+			}
 
-        List<String> excludeProperties = Config.getListProperty(Config.ONTOLOGY_IGNORE_PROPERTY);
-        if (!excludeProperties.isEmpty()) {
-            for (String propURI : excludeProperties) {
-                Property property = model.createProperty(propURI);
-                if (c.hasLiteral(property, true)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug(String.format("###############  exclude %s having property %s", c.getLocalName(), propURI));
-                    }
-                    return true;
-                }
-            }
-        }
+		}
 
-        return false;
-    }
-	
+		List<String> excludeProperties = Config.getListProperty(Config.ONTOLOGY_IGNORE_PROPERTY);
+		if (!excludeProperties.isEmpty()) {
+			for (String propURI : excludeProperties) {
+				Property property = model.createProperty(propURI);
+				if (c.hasLiteral(property, true)) {
+					if (log.isDebugEnabled()) {
+						log.debug(String.format("###############  exclude %s having property %s", c.getLocalName(), propURI));
+					}
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
 	//EM:***************************** start ***********************************	
 	/**
 	 * Adds a new entry to all indexes, e.g., label index, prefix index. The
@@ -542,28 +470,28 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 		log.debug("add Individuals-label to index");
 		if (model.size() == 0)
 			return;
-		
 
 		ExtendedIterator<Individual> ind_it = model.listIndividuals();
 		Individual ind;
 		while (ind_it.hasNext()) {
 			ind = ind_it.next();
-	        if (log.isDebugEnabled()) {
-                log.debug(String.format("****** Individual.localName: %s, with label: %s, from class: %s ",
-                        ind.getLocalName(), OntologyUtils.getLabels(ind), ind.getOntClass().getLocalName()));
-            }
+			if (log.isDebugEnabled()) {
+				log.debug(String.format("****** Individual.localName: %s, with label: %s, from class: %s ", ind.getLocalName(), OntologyUtils.getLabels(ind),
+						ind.getOntClass().getLocalName()));
+			}
 
-	        if (excludeIndividual(ind)) {
-	            continue;
-	        }
-			
+			if (excludeIndividual(ind)) {
+				continue;
+			}
+
 			List<String> labels = OntologyUtils.getLabels(ind);
 			for (String label : labels) {
-				if (label!=null) {
-					addToLabelIndex(stemmer.stem(label), ind.getOntClass());
-					addToPrefixIndex(label);
+				List<String> tokens = OntologyConceptAnalyzer.tokenize(label);
+				if (tokens != null) {
+					addToLabelIndex(tokens, ind.getOntClass());
+					addToPrefixIndex(tokens);
 				}
-			}	
+			}
 		}
 	}
 
@@ -573,114 +501,56 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	 * @return true if this individual should be ignored
 	 */
 	private boolean excludeIndividual(Individual ind) {
-        List<String> includeNamespaces = Config.getListProperty(Config.ONTOLOGY_INCLUDED_NAMESPACES);
-        if (!includeNamespaces.isEmpty()) {
-            if (ind.getNameSpace() != null && includeNamespaces.contains(ind.getNameSpace())) {
-                return false;
-            }
-            ExtendedIterator<OntClass> myclasses = ind.listOntClasses(false); 
-            while (myclasses.hasNext()) {
-                OntClass indClass = myclasses.next();
-                if (!excludeClass(indClass)) {
-                    myclasses.close();
-                    return true;
-                }
-            }
-            
-            if (log.isDebugEnabled()) {
-                log.debug("###############  skip class " + ind.getLocalName() + " from index; namespace not included");
-            }
-            return true;
-        }
-        return false;
+		List<String> includeNamespaces = Config.getListProperty(Config.ONTOLOGY_INCLUDED_NAMESPACES);
+		if (!includeNamespaces.isEmpty()) {
+			if (ind.getNameSpace() != null && includeNamespaces.contains(ind.getNameSpace())) {
+				return false;
+			}
+			ExtendedIterator<OntClass> myclasses = ind.listOntClasses(false);
+			while (myclasses.hasNext()) {
+				OntClass indClass = myclasses.next();
+				if (!excludeClass(indClass)) {
+					myclasses.close();
+					return true;
+				}
+			}
+
+			if (log.isDebugEnabled()) {
+				log.debug("###############  skip class " + ind.getLocalName() + " from index; namespace not included");
+			}
+			return true;
+		}
+		return false;
 	}
-	
+
 	// temporary, to remove *************************************	
-	private List<Individual> dumpIndividuals() {	
+	private List<Individual> dumpIndividuals() {
 		ExtendedIterator<Individual> ind_it = model.listIndividuals();
 		Individual ind;
 		List<Individual> result = new ArrayList<Individual>();
 		while (ind_it.hasNext()) {
 			ind = ind_it.next();
 			if (log.isDebugEnabled()) {
-                log.debug(String.format("****** Individual.localName: %s, with label: %s, from class: %s ",
-                        ind.getLocalName(), OntologyUtils.getLabels(ind), ind.getOntClass().getLocalName()));
+				log.debug(String.format("****** Individual.localName: %s, with label: %s, from class: %s ", ind.getLocalName(), OntologyUtils.getLabels(ind),
+						ind.getOntClass().getLocalName()));
 			}
 			result.add(ind);
 		}
 		return result;
 	}
+
 	//****************************** end ***********************************	
-	
-	
+
 	/**
 	 * Tests, if the concatenation of the given fragments are contained in the
 	 * prefix index. The order is preserved.
-	 * (The fragments must be already stemmed)
 	 * 
 	 * @param fragments
 	 *            a list of terms (stemmed)
-	 * @return true iff there is a prefix consisting of
+	 * @return true iff there is a prefix consisting of the fragments
 	 */
 	public boolean isPrefix(Collection<String> fragments) {
 		return prefixIdx.contains(implode(fragments));
-	}
-
-	/**
-	 * Generates the prefixes of a term. If {@link #explode(String)} returns an
-	 * array f1..fn with n > 1 then all terms of the form implode(f1..fi) with
-	 * 1<=i<n are prefixes (see {@link #implode(Collection)}.
-	 * 
-	 * @param term
-	 *            a term (not stemmed)
-	 * @return the prefix corresponding to a term.
-	 */
-	protected List<String> generatePrefixes(String term) {
-		if (term == null)
-			throw new NullPointerException("Parameter term must not be null");
-		
-		// TODO normalization of the term, e.g., remove all punctuation, '-', etc.
-		log.debug("PrefixIndex.term: "+term);
-		String[] fragments = explode(term);
-		if (fragments.length <= 1)
-			return Collections.emptyList();
-		
-		List<String> result = new ArrayList<String>();
-		String prefix = stemmer.stem(fragments[0]);
-		result.add(prefix);
-			
-		for (int i = 1; i < fragments.length - 1; i++) {
-			prefix = implode(prefix, stemmer.stem(fragments[i]));
-			result.add(prefix);
-		}
-		log.debug("PrefixIndex.resultindex: "+result.toString());
-		
-		return result;
-	}
-
-	/**
-	 * Split a string into fragment (at whitespaces) in the context of a prefix
-	 * index. Not stemmed.
-	 * 
-	 * @param term
-	 *            a term
-	 * @return a list of fragments
-	 */
-	private String[] explode(String term) {
-		return StringUtils.split(term);
-	}
-
-	/**
-	 * Concatenate two fragments in the context of a prefix index.
-	 * 
-	 * @param f1
-	 *            first fragment
-	 * @param f2
-	 *            second fragment
-	 * @return concatenation
-	 */
-	private String implode(String f1, String f2) {
-		return f1 + PREFIX_SEPARATOR + f2;
 	}
 
 	/**
@@ -693,17 +563,18 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 	private String implode(Collection<String> c) {
 		return StringUtils.join(c, PREFIX_SEPARATOR);
 	}
-	
+
 	/**
 	 * Convenience method for handling the array of the label index. Adds an
 	 * entry into the index. The key is taken as given.
 	 * 
-	 * @param key
-	 *            a label (stemmend)
+	 * @param tokens
+	 *            a (tokenized) label
 	 * @param clazz
 	 *            the URI of a concept
 	 */
-	private void addToLabelIndex(String key, OntClass clazz) {
+	private void addToLabelIndex(List<String> tokens, OntClass clazz) {
+		String key = implode(tokens);
 		Set<OntClass> value = new HashSet<OntClass>();
 		if (labelIdx.containsKey(key)) {
 			value.addAll(Arrays.asList(labelIdx.get(key)));
@@ -711,75 +582,70 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 		value.add(clazz);
 		OntClass[] s = new OntClass[value.size()];
 		value.toArray(s);
-		
+
 		labelIdx.put(key, s);
 		log.debug("** Updated index with " + key + " => " + value);
 	}
-	
+
 	/**
 	 * Adds all prefixes of term to the prefix index.
 	 * 
-	 * @param term
-	 *            a label (not stemmed)
+	 * @param tokens  list of tokens
 	 */
-	private void addToPrefixIndex(String term) {
-		List<String> prefixes = generatePrefixes(term);
-		if (!prefixes.isEmpty()) {
-			prefixIdx.addAll(prefixes);
-			log.trace("** Updated prefix with " + prefixes);
+	private void addToPrefixIndex(List<String> tokens) {
+		for (int i = 1, n = tokens.size(); i < n; i++) {
+			prefixIdx.add(implode(tokens.subList(0, i)));
 		}
 	}
 
 	/**
-	 * Convenience method for handling the array of the label index.Look up key
+	 * Convenience method for handling the array of the label index. Look up key
 	 * in the index and return corresponding URIs. Never returns
 	 * <code>null</code>.
 	 * 
-	 * @param key
-	 *            key to be looked up (stemmed)
+	 * @param tokens
+	 *            tokens to be looked up
 	 * @return list of corresponding URIs
 	 */
-	protected List<OntClass> getFromLabelIndex(String key) {
+	private List<OntClass> getFromLabelIndex(List<String> tokens) {
+		String key = implode(tokens);
 		if (labelIdx.containsKey(key))
-//			return Arrays.asList(labelIdx.get(key));      //EM: original
-		    return checkAdmin(Arrays.asList(labelIdx.get(key)));  //EM: included for test
+			//			return Arrays.asList(labelIdx.get(key));      //EM: original
+			return checkAdmin(Arrays.asList(labelIdx.get(key))); //EM: included for test
 		else
-			return Collections.emptyList(); 
+			return Collections.emptyList();
 	}
 
-    boolean isAdmin = false;
+	boolean isAdmin = false;
 
-    public void setAdmin(boolean admin) {
-        isAdmin = admin;
-    }
+	public void setAdmin(boolean admin) {
+		isAdmin = admin;
+	}
 
-	private List<OntClass> checkAdmin(List<OntClass> classes){
+	private List<OntClass> checkAdmin(List<OntClass> classes) {
 		List<OntClass> reslist = new ArrayList<OntClass>();
-		for(OntClass cl: classes )
-		{
-		    if (log.isDebugEnabled()) {
-		        log.debug("%%%%%%%%%%%% EM: user ist Admin: "+ isAdmin + ", class: "+cl.getURI());
-		    }
-		    boolean exclude = excludeClass(cl);
-		    
+		for (OntClass cl : classes) {
+			if (log.isDebugEnabled()) {
+				log.debug("%%%%%%%%%%%% EM: user ist Admin: " + isAdmin + ", class: " + cl.getURI());
+			}
+			boolean exclude = excludeClass(cl);
+
 			if (isAdmin) {
 				if (exclude) {
-				    reslist.add(cl);
+					reslist.add(cl);
 				}
-			}
-			else if (!exclude) {
+			} else if (!exclude) {
 				reslist.add(cl);
 			}
 		}
 
 		if (log.isDebugEnabled()) {
-		    log.debug("%%%%%%%%%%%% EM: liste mit: "+reslist.size()+" Klassen" );
+			log.debug("%%%%%%%%%%%% EM: liste mit: " + reslist.size() + " Klassen");
 		}
-	
+
 		return reslist;
 	}
-	
-	
+
 	/**
 	 * Clear ontology model, indexes, and all other stuff.
 	 */
@@ -788,11 +654,11 @@ log.debug("Anzahl der keys im Labelindex: "+ labelIdx.size());
 		labelIdx.clear();
 		prefixIdx.clear();
 	}
-	
+
 	public Map<String, OntClass[]> getLabelIndex() {
 		return labelIdx;
 	}
-	
+
 	public Set<String> getPrefixIndex() {
 		return prefixIdx;
 	}

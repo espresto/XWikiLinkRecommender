@@ -30,10 +30,12 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.Assert;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.log4j.Logger;
@@ -42,6 +44,7 @@ import org.testng.annotations.Test;
 
 import com.hp.hpl.jena.ontology.OntClass;
 
+import de.csw.lucene.OntologyConceptAnalyzer;
 import de.csw.ontology.OntologyIndex;
 
 public class OntologyMatchTest extends TestBase {
@@ -80,7 +83,8 @@ public class OntologyMatchTest extends TestBase {
 		PrintWriter w = new PrintWriter(new FileWriter(outFile));
 		for (String term : terms) {
 			log.trace("** matching " + term);
-			w.println(index.getExactMatches(term));
+			List<String> tokens = OntologyConceptAnalyzer.tokenize(term);
+			w.println(index.getExactMatches(tokens));
 		}
 		w.flush();
 		w.close();
@@ -110,7 +114,7 @@ public class OntologyMatchTest extends TestBase {
 		for (String term : terms) {
 			OntClass clazz = index.getModel().getOntClass(term);
 			log.trace("** matching " + term);
-			w.println(index.getSynonyms(clazz));
+			w.println(sortClasses(index.getSynonyms(clazz)));
 		}
 		w.flush();
 		w.close();
@@ -199,11 +203,25 @@ public class OntologyMatchTest extends TestBase {
 		PrintWriter w = new PrintWriter(new FileWriter(outFile));
 		for (String term : terms) {
 			log.trace("** matching " + term);
-			w.println(index.getSimilarMatches(term, 10));
+			List<String> tokens = OntologyConceptAnalyzer.tokenize(term);
+			List<OntClass> concepts =  index.getExactMatches(tokens);
+			w.println( sortClasses(index.getSimilarMatches(concepts, 10)) );
 		}
 		w.flush();
 		w.close();
 
 		Assert.assertTrue(FileUtils.contentEquals(outFile, resFile));
+	}
+
+	// sorts list in place and return modified list for convenience
+	private List<OntClass> sortClasses(List<OntClass> similarMatches) {
+		Collections.sort(similarMatches, new Comparator<OntClass>() {
+			@Override
+			public int compare(OntClass o1, OntClass o2) {
+				// as we are in a test, no null checks, etc needed
+				return o1.getURI().compareTo(o2.getURI());
+			}
+		});
+		return similarMatches;
 	}
 }

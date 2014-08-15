@@ -7,29 +7,45 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.hp.hpl.jena.ontology.OntClass;
+
+import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.de.CSWGermanAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 
 /**
- * facade wrapping the lucene analyzer to loop over a text and extract the concepts,
- * in a manner similar to regexPattern.appendReplacement.appentTail.  
+ * facade wrapping the lucene analyzer to loop over a text and extract the concepts.
+ * 
  * instances of this class are not thread safe!
  */
+// ToDo: use a "tokenizer/analyzer" xwiki-component or the like instead
 public class OntologyConceptAnalyzer implements Closeable {
 
-	private final TokenStream ts;
+	static final Logger log = Logger.getLogger(OntologyConceptAnalyzer.class);
+	
+	private TokenStream ts;
 
-	private final CharTermAttribute charTermAttribute;
-	private final OffsetAttribute offsetAttribute;
-	private final TypeAttribute typeAttribute;
-
+	private CharTermAttribute charTermAttribute;
+	private OffsetAttribute offsetAttribute;
+	private ConceptAttribute conceptAttribute;
 	private CSWGermanAnalyzer ga;
+	
+	private boolean exceptionCaught;
 
+	/**
+	 * for a given text return a list of (lucene analyzed) tokens.
+	 * This is a small helper to convert e.g. resource labels into token lists
+	 * that makes them recognizable in a token stream of a longer text.
+	 * The tokens here went through the same analysis as any text feed into
+	 * the OntologyConceptAnalyzer, except for concept detection.
+	 * 
+	 * @param inputText the text of break into tokens, should not be null
+	 * @return the list of (stemmed) tokens; null on error
+	 */
 	public static List<String> tokenize(String inputText) {
-		try {
+		if (inputText != null) {
 			List<String> results = new ArrayList<String>();
 			OntologyConceptAnalyzer ce = new OntologyConceptAnalyzer(inputText, false);
 			try {
@@ -41,45 +57,53 @@ public class OntologyConceptAnalyzer implements Closeable {
 			}
 
 			return results;
-		} catch (IOException ioe) {
-			// this should not happen
 		}
 		return null;
 
 	}
 
-	public OntologyConceptAnalyzer(String textToAnalyze) throws IOException {
+	public OntologyConceptAnalyzer(String textToAnalyze) {
 		this(textToAnalyze, true);
 	}
 
-	public OntologyConceptAnalyzer(String textToAnalyze, boolean withConcepts) throws IOException {
+	private OntologyConceptAnalyzer(String textToAnalyze, boolean withConcepts) {
 		Reader r = new StringReader(textToAnalyze);
 
 		ga = new CSWGermanAnalyzer(withConcepts);
 		try {
 			ts = ga.tokenStream("", r);
+			ts.reset();
 
 			charTermAttribute = ts.addAttribute(CharTermAttribute.class);
 			offsetAttribute = ts.addAttribute(OffsetAttribute.class);
-			typeAttribute = ts.addAttribute(TypeAttribute.class);
+			if (withConcepts) {
+				conceptAttribute = ts.addAttribute(ConceptAttribute.class);
+			}
 		} catch (IOException ioe) {
+			exceptionCaught = true;
 			ga.close();
-			throw ioe;
+			log.warn("init failed in " + textToAnalyze);
 		}
 
 	}
 
-	public boolean hasNextMatch() throws IOException {
-		final boolean hasNextToken = ts.incrementToken();
-		if (!hasNextToken) {
-			ts.end();
+	public boolean hasNextMatch() {
+		if (exceptionCaught) { return false; }
+		try {
+			final boolean hasNextToken = ts.incrementToken();
+			if (!hasNextToken) {
+				ts.end();
+			}
+			return hasNextToken;
+		} catch (IOException ioe) {
+			log.warn("hasNextToken failed", ioe);
+			exceptionCaught = true;
+			return false;
 		}
-		return hasNextToken;
 	}
 
 	public int startOfMatch() {
 		return offsetAttribute.startOffset();
-
 	}
 
 	public int endOfMatch() {
@@ -87,16 +111,21 @@ public class OntologyConceptAnalyzer implements Closeable {
 	}
 
 	public boolean isConcept() {
-		return typeAttribute.type().equals(ConceptFilter.CONCEPT_TYPE);
+		return conceptAttribute.isConcept();
 	}
 
 	// the matching token, in *transformed* form
-	public String token() {
+	// only used if no concept filter
+	String token() {
 		return String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length());
 	}
 
+	public List<OntClass> concepts() {
+		return conceptAttribute.getConcepts();
+	}
+	
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		ga.close();
 	}
 }

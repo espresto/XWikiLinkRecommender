@@ -50,19 +50,21 @@ import java.io.Reader;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.core.LowerCaseFilter;
 import org.apache.lucene.analysis.core.StopFilter;
-import org.apache.lucene.analysis.standard.StandardFilter;
+import org.apache.lucene.analysis.pattern.PatternTokenizer;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.analysis.util.WordlistLoader;
 import org.apache.lucene.util.Version;
 
 import de.csw.lucene.ConceptFilter;
+import de.csw.lucene.WhitespaceAndPunctuationFilter;
 import de.csw.ontology.OntologyIndex;
 import de.csw.util.Config;
 
@@ -162,22 +164,30 @@ public class CSWGermanAnalyzer extends Analyzer {
 	protected TokenStreamComponents createComponents(String fieldName,
 			Reader reader)
 	{
-		Tokenizer source = new StandardTokenizer(Version.LUCENE_40, reader);
+		Tokenizer source;
+		
+		try {
+			source = new PatternTokenizer(reader, Pattern.compile("\\b"), -1);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		// source = new StandardTokenizer(Version.LUCENE_40, reader);
+		
+		TokenStream result = source;
+		result = new LowerCaseFilter(Version.LUCENE_40, result);
+		result = new StopFilter(Version.LUCENE_40, result, new CharArraySet(Version.LUCENE_40, stopSet, true));
+		result = new WhitespaceAndPunctuationFilter(result);
+		if (Config.getBooleanAppProperty(Config.USE_LIGHT_STEMMER)) {
+			result = new GermanLightStemFilter(result);
+		} else {
+			result = new GermanStemFilter(result/*, exclusionSet*/);
+		}
 
-		TokenStream result = new StandardFilter(Version.LUCENE_40, source);
-	    result = new LowerCaseFilter(Version.LUCENE_40, result);
-	    result = new StopFilter(Version.LUCENE_40, result, new CharArraySet(Version.LUCENE_40, stopSet, true));
-	    if (Config.getBooleanAppProperty(Config.USE_LIGHT_STEMMER)) {
-	    	result = new GermanLightStemFilter(result);
-	    } else {
-	    	result = new GermanStemFilter(result/*, exclusionSet*/);
-	    }
+		if (withConcepts) {
+			result = new ConceptFilter(result, OntologyIndex.get());
+		}
 	    
-	    if (withConcepts) {
-	    	result = new ConceptFilter(result, OntologyIndex.get());
-	    }
-	    
-	    return new TokenStreamComponents(source, result);
+		return new TokenStreamComponents(source, result);
 	}
 	
 
