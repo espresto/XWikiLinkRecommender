@@ -11,7 +11,6 @@ import com.hp.hpl.jena.ontology.OntClass;
 
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.de.CSWGermanAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 
@@ -24,14 +23,14 @@ import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 public class OntologyConceptAnalyzer implements Closeable {
 
 	static final Logger log = Logger.getLogger(OntologyConceptAnalyzer.class);
-	
+
 	private TokenStream ts;
 
 	private CharTermAttribute charTermAttribute;
 	private OffsetAttribute offsetAttribute;
 	private ConceptAttribute conceptAttribute;
 	private CSWGermanAnalyzer ga;
-	
+
 	private boolean exceptionCaught;
 
 	/**
@@ -88,7 +87,9 @@ public class OntologyConceptAnalyzer implements Closeable {
 	}
 
 	public boolean hasNextMatch() {
-		if (exceptionCaught) { return false; }
+		if (exceptionCaught) {
+			return false;
+		}
 		try {
 			final boolean hasNextToken = ts.incrementToken();
 			if (!hasNextToken) {
@@ -123,7 +124,7 @@ public class OntologyConceptAnalyzer implements Closeable {
 	public List<OntClass> concepts() {
 		return conceptAttribute.getConcepts();
 	}
-	
+
 	@Override
 	public void close() {
 		ga.close();
