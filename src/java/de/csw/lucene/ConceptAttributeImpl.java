@@ -2,19 +2,19 @@ package de.csw.lucene;
 
 import java.util.List;
 
-import com.hp.hpl.jena.ontology.OntClass;
+import com.hp.hpl.jena.ontology.OntResource;
 
 import org.apache.lucene.util.AttributeImpl;
 
 public class ConceptAttributeImpl extends AttributeImpl implements ConceptAttribute {
 
-	private List<OntClass> concepts;
+	private List<OntResource> concepts;
 
-	public List<OntClass> getConcepts() {
+	public List<OntResource> getConcepts() {
 		return concepts;
 	}
 
-	public void setConcepts(List<OntClass> concepts) {
+	public void setConcepts(List<OntResource> concepts) {
 		this.concepts = concepts;
 	}
 

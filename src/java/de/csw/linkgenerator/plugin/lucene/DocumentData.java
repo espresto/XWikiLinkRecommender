@@ -23,7 +23,7 @@ import java.util.List;
 
 import org.apache.log4j.Logger;
 
-import com.hp.hpl.jena.ontology.OntClass;
+import com.hp.hpl.jena.ontology.OntResource;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.api.DocumentSection;
@@ -95,7 +95,7 @@ log.debug("&&&&&&&&&&&&&&& EM: context check, user: " + context.getXWikiUser());
         try {
         	while (analyser.hasNextMatch()) {
         		if (analyser.isConcept()) {
-        			List<OntClass> concepts = analyser.concepts();
+        			List<OntResource> concepts = analyser.concepts();
         			List<String> similarTerms = ontologyIndex.getSimilarMatchLabels(concepts, Config.getIntAppProperty(Config.LUCENE_MAXSEARCHTERMS));
         			for (String similarTerm : similarTerms) {
         				text.append(' ');

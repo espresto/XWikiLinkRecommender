@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import com.hp.hpl.jena.ontology.OntClass;
+import com.hp.hpl.jena.ontology.OntResource;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -76,7 +76,7 @@ public class XWikiTextEnhancer implements TextEnhancer {
 					final int endTextOffset = plainTextView.getOriginalEndPosition(oca.endOfMatch());
 
 					result.append(text.substring(lastEndIndex, startTextOffset));
-					final List<OntClass> concepts = oca.concepts();
+					final List<OntResource> concepts = oca.concepts();
 					if (log.isDebugEnabled()) {
 						log.debug("****EM: XWikiTextEnhancer.enhance2, concept: " + concepts + "\nstartOffset(): " + startTextOffset + "\nendOffset(): "
 								+ endTextOffset + "\norigText: " + text.substring(startTextOffset, endTextOffset));
@@ -115,10 +115,10 @@ public class XWikiTextEnhancer implements TextEnhancer {
 	 * @param concepts 
 	 *            the concepts found for the term
 	 */
-	protected void annotateWithSearch(StringBuilder sb, String term, List<OntClass> concepts) {
+	protected void annotateWithSearch(StringBuilder sb, String term, List<OntResource> concepts) {
 
 		List<String> originalTerms = OntologyUtils.getLabels(concepts);
-		List<OntClass> similarConcepts = index.getSimilarMatches(concepts, MAX_SIMILAR_CONCEPTS);
+		List<OntResource> similarConcepts = index.getSimilarMatches(concepts, MAX_SIMILAR_CONCEPTS);
 		List<String> matches = OntologyUtils.getLabels(similarConcepts);
 
 		if (matches.isEmpty()) {

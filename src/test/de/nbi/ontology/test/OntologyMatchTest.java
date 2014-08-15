@@ -30,7 +30,6 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -43,6 +42,7 @@ import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import com.hp.hpl.jena.ontology.OntClass;
+import com.hp.hpl.jena.ontology.OntResource;
 
 import de.csw.lucene.OntologyConceptAnalyzer;
 import de.csw.ontology.OntologyIndex;
@@ -70,7 +70,6 @@ public class OntologyMatchTest extends TestBase {
 	 *            a list of terms
 	 * @throws IOException
 	 */
-	@SuppressWarnings("unchecked")
 	@Test(dataProviderClass = TestFileProvider.class, dataProvider = "exactMatchTestFiles",
 			groups = { "functest" })
 	public void exactMatch(File inFile) throws IOException {
@@ -100,7 +99,6 @@ public class OntologyMatchTest extends TestBase {
 	 *            a list of terms
 	 * @throws IOException
 	 */
-	@SuppressWarnings("unchecked")
 	@Test(dataProviderClass = TestFileProvider.class, dataProvider = "synonymTestFiles",
 			groups = { "functest" })
 	public void synonyms(File inFile) throws IOException {
@@ -130,7 +128,6 @@ public class OntologyMatchTest extends TestBase {
 	 *            a list of terms
 	 * @throws IOException
 	 */
-	@SuppressWarnings("unchecked")
 	@Test(dataProviderClass = TestFileProvider.class, dataProvider = "parentTestFiles",
 			groups = { "functest" })
 	public void parents(File inFile) throws IOException {
@@ -160,7 +157,6 @@ public class OntologyMatchTest extends TestBase {
 	 *            a list of terms
 	 * @throws IOException
 	 */
-	@SuppressWarnings("unchecked")
 	@Test(dataProviderClass = TestFileProvider.class, dataProvider = "childTestFiles",
 			groups = { "functest" })
 	public void children(File inFile) throws IOException {
@@ -190,7 +186,6 @@ public class OntologyMatchTest extends TestBase {
 	 *            a list of terms
 	 * @throws IOException
 	 */
-	@SuppressWarnings("unchecked")
 	@Test(dataProviderClass = TestFileProvider.class, dataProvider = "similarTestFiles",
 			groups = { "functest" })
 	public void similar(File inFile) throws IOException {
@@ -204,7 +199,7 @@ public class OntologyMatchTest extends TestBase {
 		for (String term : terms) {
 			log.trace("** matching " + term);
 			List<String> tokens = OntologyConceptAnalyzer.tokenize(term);
-			List<OntClass> concepts =  index.getExactMatches(tokens);
+			List<OntResource> concepts =  index.getExactMatches(tokens);
 			w.println( sortClasses(index.getSimilarMatches(concepts, 10)) );
 		}
 		w.flush();
@@ -214,10 +209,10 @@ public class OntologyMatchTest extends TestBase {
 	}
 
 	// sorts list in place and return modified list for convenience
-	private List<OntClass> sortClasses(List<OntClass> similarMatches) {
-		Collections.sort(similarMatches, new Comparator<OntClass>() {
+	private <OntSomething extends OntResource> List<OntSomething> sortClasses(List<OntSomething> similarMatches) {
+		Collections.sort(similarMatches, new Comparator<OntSomething>() {
 			@Override
-			public int compare(OntClass o1, OntClass o2) {
+			public int compare(OntSomething o1, OntSomething o2) {
 				// as we are in a test, no null checks, etc needed
 				return o1.getURI().compareTo(o2.getURI());
 			}

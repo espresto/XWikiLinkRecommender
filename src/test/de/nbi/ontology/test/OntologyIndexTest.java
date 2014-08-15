@@ -36,15 +36,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Assert;
+import com.hp.hpl.jena.ontology.OntResource;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.junit.Assert;
 import org.testng.annotations.Test;
-
-import com.hp.hpl.jena.ontology.OntClass;
 
 import de.csw.ontology.OntologyIndex;
 
@@ -73,7 +72,7 @@ public class OntologyIndexTest extends TestBase {
 		index.load(new FileInputStream(inFile));
 		
 		PrintWriter w = new PrintWriter(new FileWriter(outFile));
-		Map<String, OntClass[]> labelIdx = index.getLabelIndex();
+		Map<String, OntResource[]> labelIdx = index.getLabelIndex();
 		for (String k : labelIdx.keySet()) {
 			w.println(k + " = > " + Arrays.toString(labelIdx.get(k)));
 		}
@@ -95,7 +94,7 @@ public class OntologyIndexTest extends TestBase {
 	 *            an ontology
 	 * @throws IOException
 	 */
-	@SuppressWarnings("unchecked")
+	// TODO: fails, as "sehr" is a stopword now
 	@Test(dataProviderClass=TestFileProvider.class, dataProvider="prefixTestFiles",
 			groups = {"functest"})
 	public void isPrefix(File inFile) throws IOException {

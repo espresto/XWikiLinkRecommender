@@ -25,7 +25,12 @@
  ******************************************************************************/
 package de.csw.ontology;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -40,6 +45,7 @@ import com.hp.hpl.jena.ontology.Individual;
 import com.hp.hpl.jena.ontology.OntClass;
 import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.ontology.OntModelSpec;
+import com.hp.hpl.jena.ontology.OntResource;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.util.iterator.ExtendedIterator;
@@ -67,7 +73,7 @@ public class OntologyIndex {
 
 	/** Index for mapping labels (in its stemmed version) to concepts of the ontology. */
 	// TODO encapsulate in a separate class
-	Map<String, OntClass[]> labelIdx = new HashMap<String, OntClass[]>();
+	Map<String, OntResource[]> labelIdx = new HashMap<String, OntResource[]>();
 
 	/** The set contains all prefixes of the concepts, see {@link #generatePrefixes(String)} */
 	// TODO encapsulate in a separate class
@@ -131,19 +137,19 @@ public class OntologyIndex {
 	 *            maximum number of concepts in the result
 	 * @return a list of matching concepts URIs
 	 */
-	public List<OntClass> getSimilarMatches(List<OntClass> classes, int limit) {
+	public List<OntResource> getSimilarMatches(List<OntResource> resources, int limit) {
 
 		// check if we reached the limit
-		if (classes.size() > limit) {
-			classes = classes.subList(0, limit);
-			return classes;
+		if (resources.size() > limit) {
+			resources = resources.subList(0, limit);
+			return resources;
 		}
 
-		Set<OntClass> result = new HashSet<OntClass>();
+		Set<OntResource> result = new HashSet<OntResource>();
 
-		boolean available = addAllWithLimit(result, classes, limit);
+		boolean available = addAllWithLimit(result, resources, limit);
 		if (available) {
-			for (OntClass c : classes) {
+			for (OntResource c : resources) {
 				available = addAllWithLimit(result, getSynonyms(c), limit);
 				if (!available) {
 					break;
@@ -151,7 +157,7 @@ public class OntologyIndex {
 			}
 		}
 		if (available) {
-			for (OntClass c : classes) {
+			for (OntResource c : resources) {
 				available = addAllWithLimit(result, getChildren(c), limit);
 				if (!available) {
 					break;
@@ -159,7 +165,7 @@ public class OntologyIndex {
 			}
 		}
 		if (available) {
-			for (OntClass c : classes) {
+			for (OntResource c : resources) {
 				available = addAllWithLimit(result, getParents(c), limit);
 				if (!available) {
 					break;
@@ -167,13 +173,13 @@ public class OntologyIndex {
 			}
 		}
 
-		return new ArrayList<OntClass>(result);
+		return new ArrayList<OntResource>(result);
 	}
 
 	// return true, if limit not reached
-	private boolean addAllWithLimit(Set<OntClass> result, List<OntClass> moreItems, int limit) {
-		for (OntClass clazz : moreItems) {
-			result.add(clazz);
+	private boolean addAllWithLimit(Set<OntResource> result, List<? extends OntResource> moreItems, int limit) {
+		for (OntResource resource : moreItems) {
+			result.add(resource);
 			if (result.size() >= limit) {
 				return false;
 			}
@@ -189,18 +195,21 @@ public class OntologyIndex {
 	 * @param classes the classes where similar concepts are looked for. should not be null
 	 * @return a list of matching concepts
 	 */
-	private List<OntClass> getSimilarMatches(List<OntClass> classes) {
+	private List<OntResource> getSimilarMatches(List<OntResource> classes) {
 
-		Set<OntClass> result = new HashSet<OntClass>();
+		Set<OntResource> result = new HashSet<OntResource>();
 		result.addAll(classes);
 
-		for (OntClass c : classes) {
-			result.addAll(getSynonyms(c));
-			result.addAll(getChildren(c));
-			result.addAll(getParents(c));
+		for (OntResource r : classes) {
+			if (r.canAs(OntClass.class)) {
+				OntClass c = r.asClass();
+				result.addAll(getSynonyms(c));
+				result.addAll(getChildren(c));
+				result.addAll(getParents(c));
+			}
 		}
 
-		return new ArrayList<OntClass>(result);
+		return new ArrayList<OntResource>(result);
 	}
 
 	/**
@@ -209,7 +218,7 @@ public class OntologyIndex {
 	 * 
 	 * @return labels of the synonyms
 	 */
-	public List<String> getSimilarMatchLabels(List<OntClass> classes) {
+	public List<String> getSimilarMatchLabels(List<OntResource> classes) {
 		return OntologyUtils.getLabels(getSimilarMatches(classes));
 	}
 
@@ -219,7 +228,7 @@ public class OntologyIndex {
 	 * 
 	 * @return labels of the synonyms
 	 */
-	public List<String> getSimilarMatchLabels(List<OntClass> classes, int limit) {
+	public List<String> getSimilarMatchLabels(List<OntResource> classes, int limit) {
 		return OntologyUtils.getLabels(getSimilarMatches(classes, limit));
 	}
 
@@ -243,7 +252,7 @@ public class OntologyIndex {
 	 * @return a list of matching concepts
 	 */
 	// TODO include a more flexible search using Levenshtein for words with a length > 5
-	public List<OntClass> getExactMatches(List<String> tokens) {
+	public List<OntResource> getExactMatches(List<String> tokens) {
 		return getFromLabelIndex(tokens);
 	}
 
@@ -255,8 +264,8 @@ public class OntologyIndex {
 	 *            tokens to be looked up
 	 * @return first matching concept or <code>null</code>
 	 */
-	public OntClass getFirstExactMatch(List<String> tokens) {
-		List<OntClass> matches = getExactMatches(tokens);
+	public OntResource getFirstExactMatch(List<String> tokens) {
+		List<OntResource> matches = getExactMatches(tokens);
 		return matches.size() > 0 ? matches.get(0) : null;
 	}
 
@@ -270,7 +279,8 @@ public class OntologyIndex {
 	 *            term to be looked up
 	 * @return a list of synonym concepts URIs
 	 */
-	public List<OntClass> getSynonyms(OntClass clazz) {
+	public List<OntClass> getSynonyms(OntResource resource) {
+		OntClass clazz = asClassOrNull(resource);
 		if (clazz == null)
 			return Collections.emptyList();
 
@@ -280,7 +290,7 @@ public class OntologyIndex {
 		ExtendedIterator equivIter = clazz.listEquivalentClasses();
 		while (equivIter.hasNext()) {
 			OntClass synonym = (OntClass) equivIter.next();
-			if (!clazz.equals(synonym) && !excludeClass(synonym)) {
+			if (!clazz.equals(synonym) && !excludeResource(synonym)) {
 				result.add(synonym);
 			}
 		}
@@ -294,31 +304,19 @@ public class OntologyIndex {
 	 * concepts (URIs). Synonyms are not considered. The list contains no
 	 * duplicates. Never returns <code>null</code>.
 	 * 
-	 * @param clazz
+	 * @param resource
 	 *            term to be looked up
 	 * @return a list of parent concepts URIs
 	 */
 	// TODO add all synonyms of the parents to the result
-	public List<OntClass> getParents(OntClass clazz) {
+	public List<OntClass> getParents(OntResource resource) {
+		OntClass clazz = asClassOrNull(resource);
 		if (clazz == null)
 			return Collections.emptyList();
 
 		List<OntClass> result = new ArrayList<OntClass>();
-
-		ExtendedIterator parentIter = clazz.listSuperClasses(true);
-		while (parentIter.hasNext()) {
-			OntClass parent = (OntClass) parentIter.next();
-			if (log.isDebugEnabled()) {
-				log.debug("************* EM: getParents: for: " + clazz.getLocalName() + " = " + parent.getLocalName() + " is anonymous Class?: "
-						+ parent.isAnon());
-			}
-
-			if (excludeClass(parent)) {
-				continue;
-			}
-			result.add(parent);
-		}
-
+		ExtendedIterator<OntClass> parentIter = clazz.listSuperClasses(true);
+		addAll(parentIter, result);
 		return result;
 	}
 
@@ -332,22 +330,60 @@ public class OntologyIndex {
 	 * @return a list of child concepts URIs
 	 */
 	// TODO add all synonyms of the children to the result
-	public List<OntClass> getChildren(OntClass clazz) {
+	public List<OntClass> getChildren(OntResource resource) {
+		OntClass clazz = asClassOrNull(resource);
 		if (clazz == null)
 			return Collections.emptyList();
 
 		List<OntClass> result = new ArrayList<OntClass>();
-
-		ExtendedIterator childIter = clazz.listSubClasses(true);
-		while (childIter.hasNext()) {
-			OntClass child = (OntClass) childIter.next();
-			if (!excludeClass(child)) {
-				result.add(child);
-			}
-		}
-
+		addAll(clazz.listSubClasses(true), result);
 		return result;
 	}
+
+	// small helper to add all non-excluded resources from the iterator
+	// ToDo create result list here instead of filling  it
+	private <K extends OntResource> void addAll(ExtendedIterator<K> iter, List<K> result) {
+		while (iter.hasNext()) {
+			K item = iter.next();
+			if (!excludeResource(item)) {
+				result.add(item);
+			}
+		}
+		iter.close();
+	}
+	
+	// helper to convert to class or individual 
+	private OntClass asClassOrNull(OntResource resource) {
+		if (resource != null && resource.canAs(OntClass.class)) {
+			return resource.asClass();
+		}
+		return null;
+	}
+
+	public List<OntClass> getSimilarClasses(OntResource resource) {
+		Individual individual = asIndividualOrNull(resource);
+		if (individual == null)
+			return Collections.emptyList();
+		
+		List<OntClass> result = new ArrayList<OntClass>();
+		ExtendedIterator<OntClass> classIter = individual.listOntClasses(true);
+		addAll(classIter, result);
+		List<OntClass> synonyms = new ArrayList<OntClass>();
+		for (OntClass clazz : result) {
+			synonyms.addAll(getSynonyms(clazz));
+		}
+		result.addAll(synonyms);
+		return result;
+	}
+
+	// helper to convert to class or individual 
+	private Individual asIndividualOrNull(OntResource resource) {
+		if (resource != null && resource.canAs(Individual.class)) {
+			return resource.asIndividual();
+		}
+		return null;
+	}
+
 
 	/**
 	 * Load statements from an input stream to the model.
@@ -387,7 +423,7 @@ public class OntologyIndex {
 		while (it.hasNext()) {
 			OntClass ontClass = it.next();
 
-			if (excludeClass(ontClass)) {
+			if (excludeResource(ontClass)) {
 				continue;
 			}
 
@@ -395,7 +431,7 @@ public class OntologyIndex {
 			log.debug("###############  adding labels " + labels);
 			for (String label : labels) {
 				log.debug("label: " + label);
-				// TODO here we must use the same analyzer as some clients that call us later
+				// TODO here we must use the same analyzer than some clients that call us later
 				// is there any way to enforce this ?
 				List<String> tokens = OntologyConceptAnalyzer.tokenize(label);
 				if (tokens != null) {
@@ -407,7 +443,6 @@ public class OntologyIndex {
 		addIndividualsToIndex(); //EM: add Individual label
 		log.debug("done");
 		log.debug("Anzahl der keys im Labelindex: " + labelIdx.size());
-
 	}
 
 	/**
@@ -415,9 +450,9 @@ public class OntologyIndex {
 	 * @param c
 	 * @return
 	 */
-	private boolean excludeClass(OntClass c) {
+	private boolean excludeResource(OntResource c) {
 		if (log.isDebugEnabled()) {
-			log.debug(String.format("****** OntClass.localName: %s, with Namespace : %s, with URI: %s", c.getLocalName(), c.getNameSpace(), c.getURI()));
+			log.debug(String.format("****** OntResource.localName: %s, with Namespace : %s, with URI: %s", c.getLocalName(), c.getNameSpace(), c.getURI()));
 		}
 
 		if (c.isAnon()) {
@@ -480,7 +515,7 @@ public class OntologyIndex {
 						ind.getOntClass().getLocalName()));
 			}
 
-			if (excludeIndividual(ind) || excludeClass(ind.getOntClass())) {
+			if (excludeIndividual(ind)) {
 				continue;
 			}
 
@@ -488,7 +523,7 @@ public class OntologyIndex {
 			for (String label : labels) {
 				List<String> tokens = OntologyConceptAnalyzer.tokenize(label);
 				if (tokens != null) {
-					addToLabelIndex(tokens, ind.getOntClass());
+					addToLabelIndex(tokens, ind);
 					addToPrefixIndex(tokens);
 				}
 			}
@@ -497,33 +532,26 @@ public class OntologyIndex {
 
 	/**
 	 * helper to exclude individuals from the index
-	 * @param int the indivdual to test, should not be null
+	 * @param int the individual to test, should not be null
 	 * @return true if this individual should be ignored
 	 */
 	private boolean excludeIndividual(Individual ind) {
-		List<String> includeNamespaces = Config.getListProperty(Config.ONTOLOGY_INCLUDED_NAMESPACES);
-		if (!includeNamespaces.isEmpty()) {
-			if (ind.getNameSpace() != null && includeNamespaces.contains(ind.getNameSpace())) {
-				return false;
-			}
-			ExtendedIterator<OntClass> myclasses = ind.listOntClasses(false);
-			while (myclasses.hasNext()) {
-				OntClass indClass = myclasses.next();
-				if (!excludeClass(indClass)) {
-					myclasses.close();
-					return true;
-				}
-			}
-
-			if (log.isDebugEnabled()) {
-				log.debug("###############  skip class " + ind.getLocalName() + " from index; namespace not included");
-			}
+		if (excludeResource(ind)) {
 			return true;
+		}
+		ExtendedIterator<OntClass> myclasses = ind.listOntClasses(false);
+		while (myclasses.hasNext()) {
+			OntClass indClass = myclasses.next();
+			if (excludeResource(indClass)) {
+				myclasses.close();
+				return true;
+			}
 		}
 		return false;
 	}
 
-	// temporary, to remove *************************************	
+	// temporary, for debugging *************************************	
+	@SuppressWarnings("unused")
 	private List<Individual> dumpIndividuals() {
 		ExtendedIterator<Individual> ind_it = model.listIndividuals();
 		Individual ind;
@@ -537,6 +565,31 @@ public class OntologyIndex {
 			result.add(ind);
 		}
 		return result;
+	}
+
+	@SuppressWarnings("unused")
+	private void dumpIndexToFile(String path) {
+		try {
+			PrintWriter w = new PrintWriter(new File(path), "UTF-8");
+			w.println("Concept index");
+			final List<String> labels = new ArrayList<>(getLabelIndex().keySet());
+			Collections.sort(labels);
+			for (String label: labels) {
+				w.println(String.format("%s:\t%s",label, Arrays.asList(getLabelIndex().get(label))));
+			}
+			
+			w.println();
+			w.println("Prefix index");
+			final List<String> prefixes = new ArrayList<>(getPrefixIndex());
+			Collections.sort(prefixes);
+			for (String prefix: prefixes) {
+				w.println(prefix);
+			}
+			w.close();
+		} catch (IOException e) {
+			log.warn("cannot dump index", e);
+		}
+		
 	}
 
 	//****************************** end ***********************************	
@@ -570,17 +623,17 @@ public class OntologyIndex {
 	 * 
 	 * @param tokens
 	 *            a (tokenized) label
-	 * @param clazz
-	 *            the URI of a concept
+	 * @param ontResource
+	 *            the resource (concept/individual) to index
 	 */
-	private void addToLabelIndex(List<String> tokens, OntClass clazz) {
+	private void addToLabelIndex(List<String> tokens, OntResource ontResource) {
 		String key = implode(tokens);
-		Set<OntClass> value = new HashSet<OntClass>();
+		Set<OntResource> value = new HashSet<OntResource>();
 		if (labelIdx.containsKey(key)) {
 			value.addAll(Arrays.asList(labelIdx.get(key)));
 		}
-		value.add(clazz);
-		OntClass[] s = new OntClass[value.size()];
+		value.add(ontResource);
+		OntResource[] s = new OntResource[value.size()];
 		value.toArray(s);
 
 		labelIdx.put(key, s);
@@ -607,7 +660,7 @@ public class OntologyIndex {
 	 *            tokens to be looked up
 	 * @return list of corresponding URIs
 	 */
-	private List<OntClass> getFromLabelIndex(List<String> tokens) {
+	private List<OntResource> getFromLabelIndex(List<String> tokens) {
 		String key = implode(tokens);
 		if (labelIdx.containsKey(key))
 			//			return Arrays.asList(labelIdx.get(key));      //EM: original
@@ -622,13 +675,13 @@ public class OntologyIndex {
 		isAdmin = admin;
 	}
 
-	private List<OntClass> checkAdmin(List<OntClass> classes) {
-		List<OntClass> reslist = new ArrayList<OntClass>();
-		for (OntClass cl : classes) {
+	private List<OntResource> checkAdmin(List<OntResource> classes) {
+		List<OntResource> reslist = new ArrayList<OntResource>();
+		for (OntResource cl : classes) {
 			if (log.isDebugEnabled()) {
 				log.debug("%%%%%%%%%%%% EM: user ist Admin: " + isAdmin + ", class: " + cl.getURI());
 			}
-			boolean exclude = excludeClass(cl);
+			boolean exclude = excludeResource(cl);
 
 			if (isAdmin) {
 				if (exclude) {
@@ -655,7 +708,7 @@ public class OntologyIndex {
 		prefixIdx.clear();
 	}
 
-	public Map<String, OntClass[]> getLabelIndex() {
+	public Map<String, OntResource[]> getLabelIndex() {
 		return labelIdx;
 	}
 

@@ -7,7 +7,7 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.hp.hpl.jena.ontology.OntClass;
+import com.hp.hpl.jena.ontology.OntResource;
 
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
@@ -121,7 +121,7 @@ public class OntologyConceptAnalyzer implements Closeable {
 		return String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length());
 	}
 
-	public List<OntClass> concepts() {
+	public List<OntResource> concepts() {
 		return conceptAttribute.getConcepts();
 	}
 
