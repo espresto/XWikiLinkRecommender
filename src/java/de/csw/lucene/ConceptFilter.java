@@ -105,7 +105,7 @@ public final class ConceptFilter extends TokenFilter {
 			return false;
 		}
 
-		Queue<AttributeSource.State> lookAhead = new LinkedList<AttributeSource.State>();
+		LinkedList<AttributeSource.State> lookAhead = new LinkedList<AttributeSource.State>();
 		List<String> terms = new ArrayList<String>();
 		terms.add(String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
 
@@ -118,18 +118,30 @@ public final class ConceptFilter extends TokenFilter {
 				noPunctuationInterrupt = !punctAttribute.isAfterPunct();
 			}
 		}
-		// TODO: if we have matches for "A" and "A B", but see "A, B", this does not find "A" (yet)
 
-		
+		// if we have concepts for "A" and "A B", but see "A C", we have "A C" on the term list now and would not find "A"
+		// try to see if we can fix that by pushing back one token
+		// same problem if we got interrupted by punctuation, like "A; B"
+		boolean isConceptMatch = noPunctuationInterrupt && index.hasExactMatches(terms);
+		if (!isConceptMatch) {
+			if (terms.size() > 1 && index.hasExactMatches(terms.subList(0, terms.size() - 1))) {
+				isConceptMatch = true;
+				queue.add(captureState());
+				restoreState(lookAhead.removeLast());
+				terms.remove(terms.size() - 1);
+			}
+		}
+
 		// if we have a match ...
-		if (noPunctuationInterrupt && index.hasExactMatches(terms)) {
+		if (isConceptMatch) {
 
-			// ... then we consume all elements in the look ahead, if present
+			// ... then we reset the state to the first token found, and adjusting it
 			if (!lookAhead.isEmpty()) {
 				int maxEndOffset = offsetAttribute.endOffset();
 				restoreState(lookAhead.poll());
-				// first term already present in current token; append the rest
-				// XXX do we really need to do this here? we have all the information in the tokens
+				// now the first term is already present in current token; append the rest
+				// XXX do we really need to do this here? we have all the information in the "terms"
+				// and in the conceptAttribute
 				//for (String term : terms.subList(1, terms.size())) {
 				//	charTermAttribute.append(OntologyIndex.PREFIX_SEPARATOR);
 				//	charTermAttribute.append(term);

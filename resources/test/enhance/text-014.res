@@ -1,0 +1,2 @@
+Das ist [[Pfeffer und Salz>>http://wiki.test:8765/xwiki/bin/view/Main/LuceneSearch?text=Kochsalz+Pfeffer+Speisesalz+Gew%C3%BCrzmischung+%22Pfeffer+und+Salz%22||class="similarconcept" title="Suche nach den verwandten Begriffen: Kochsalz, Pfeffer, Speisesalz, Gewürzmischung"]].
+Das ist [[Pfeffer>>http://wiki.test:8765/xwiki/bin/view/Main/LuceneSearch?text=K%C3%BCchengew%C3%BCrz+Pfeffer+%22Pfeffer+und+Salz%22||class="similarconcept" title="Suche nach den verwandten Begriffen: Küchengewürz, Pfeffer und Salz"]]. Salz ist woanders.
