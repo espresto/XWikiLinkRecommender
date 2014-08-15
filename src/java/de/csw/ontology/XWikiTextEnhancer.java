@@ -126,13 +126,15 @@ public class XWikiTextEnhancer implements TextEnhancer {
 			return;
 		}
 
+		boolean filterFirst = !originalTerms.containsAll(matches);
 		sb.append("[[").append(term);
 		sb.append(">>").append(getSearchURL(matches));
 		sb.append("||class=\"similarconcept\"");
 		sb.append(" title=\"Suche nach den verwandten Begriffen: ");
 		boolean afterFirstTerm = false;
+		
 		for (String similarTerm : matches) {
-			if (!originalTerms.contains(similarTerm)) {
+			if (!filterFirst || !originalTerms.contains(similarTerm)) {
 				if (afterFirstTerm) {
 					sb.append(", ");
 				}
