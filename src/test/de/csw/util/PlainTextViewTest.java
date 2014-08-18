@@ -49,6 +49,7 @@ public class PlainTextViewTest {
         assertPlainText("Two  with more text", "Two [[consecutive>>target]][[links]] with more text");
 
         assertPlainText("", "{{include document=\"Panels.PanelSheet\"/}}");
+        assertPlainText("This strikethrough content here", "This (% style=\"text-decoration: line-through;\" %)strikethrough content (%%)here");
     }
     
     @Test
