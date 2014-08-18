@@ -28,8 +28,6 @@ package de.csw.ontology.util;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.hp.hpl.jena.ontology.Individual;
-import com.hp.hpl.jena.ontology.OntClass;
 import com.hp.hpl.jena.ontology.OntResource;
 import com.hp.hpl.jena.rdf.model.Literal;
 import com.hp.hpl.jena.util.iterator.ExtendedIterator;
@@ -106,38 +104,19 @@ public class OntologyUtils {
 	 * Returns a list containing all labels for the given classes, in all
 	 * languages specified in the global application configuration.
 	 * 
-	 * @param classes
+	 * @param resources
 	 *            a list of OntClasses
 	 * @return a list of labels for the given classes
 	 */
-	public static List<String> getLabels(List<OntClass> classes) {
+	public static List<String> getLabels(List<OntResource> resources) {
 		ArrayList<String> result = new ArrayList<String>();
 		
-		for (OntClass clazz : classes) {
-			result.addAll(getLabels(clazz));
+		for (OntResource classOrInstance : resources) {
+			result.addAll(getLabels(classOrInstance));
 		}
 		
 		return result;
 	}
-	
-	/**
-	 * Returns a list containing all labels for the given classes, in all
-	 * languages specified in the global application configuration.
-	 * 
-	 * @param classes
-	 *            a list of Individual
-	 * @return a list of labels for the given Individual
-     */
-	public static List<String> getLabelsIndividuals(List<Individual> indu) {
-		ArrayList<String> result = new ArrayList<String>();
-		
-		for (Individual ind : indu) {
-			result.addAll(getLabels(ind));
-		}
-		
-		return result;
-	} 
-	
 	
 }
 

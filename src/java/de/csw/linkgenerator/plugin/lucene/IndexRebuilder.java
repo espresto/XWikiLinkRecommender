@@ -104,7 +104,7 @@ public class IndexRebuilder extends AbstractXWikiRunnable
         } else {
             this.rebuildInProgress = true;
             this.context = context;
-            Thread indexRebuilderThread = new Thread(this, "Lucene Index Rebuilder");
+            Thread indexRebuilderThread = new Thread(this, "LinkRecommender Lucene Index Rebuilder");
             // The JVM should be allowed to shutdown while this thread is running
             indexRebuilderThread.setDaemon(true);
             // Client requests are more important than indexing
@@ -118,7 +118,7 @@ public class IndexRebuilder extends AbstractXWikiRunnable
 
     public void run()
     {
-        MDC.put("url", "Lucene index rebuilder thread");
+        MDC.put("url", "LinkRecommender Lucene index rebuilder thread");
         LOG.debug("Starting lucene index rebuild");
         XWikiContext context = null;
         try {

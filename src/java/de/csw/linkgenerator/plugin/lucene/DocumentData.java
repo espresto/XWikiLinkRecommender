@@ -23,12 +23,15 @@ import java.util.List;
 
 import org.apache.log4j.Logger;
 
+import com.hp.hpl.jena.ontology.OntResource;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.api.DocumentSection;
 import com.xpn.xwiki.doc.XWikiDocument;
 
+import de.csw.lucene.OntologyConceptAnalyzer;
 import de.csw.ontology.OntologyIndex;
+import de.csw.util.Config;
 
 /**
  * Holds all data but the content of a wiki page to be indexed. The content is retrieved at indexing
@@ -85,20 +88,28 @@ log.debug("&&&&&&&&&&&&&&& EM: context check, user: " + context.getXWikiUser());
         text.append(" ");
         text.append(extractDocumentSectionTitles(doc));
 
-        String[] terms = text.toString().split(WORD_DELIMITER_PATTERN_STRING);
-        
+        String textToAnalyse = text.toString();
         OntologyIndex ontologyIndex = OntologyIndex.get();
-
-        for (int i = 0; i < terms.length; i++) {
-			String term = terms[i];
-			List<String> similarTerms = ontologyIndex.getSimilarMatchLabels(term, 5);
-			for (String similarTerm : similarTerms) {
-				text.append(' ');
-				text.append(similarTerm);
-			}
-		}
         
+        OntologyConceptAnalyzer analyser = new OntologyConceptAnalyzer(textToAnalyse);
+        try {
+        	while (analyser.hasNextMatch()) {
+        		if (analyser.isConcept()) {
+        			List<OntResource> concepts = analyser.concepts();
+        			List<String> similarTerms = ontologyIndex.getSimilarMatchLabels(concepts, Config.getIntAppProperty(Config.LUCENE_MAXSEARCHTERMS));
+        			for (String similarTerm : similarTerms) {
+        				text.append(' ');
+        				text.append(similarTerm);
+        			}
+        			log.debug("&&&&&&&&&&&&&&& found token for : " + textToAnalyse.substring(analyser.startOfMatch(), analyser.endOfMatch())
+        					+ "( as tokens : " + concepts + ") as " + similarTerms);   	
 
+        		}
+        	}
+        } finally {
+        	analyser.close();
+        }
+        
         return text.toString();
     }
     

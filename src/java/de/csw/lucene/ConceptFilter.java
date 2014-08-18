@@ -48,40 +48,35 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.util.AttributeSource;
 
 import de.csw.ontology.OntologyIndex;
 
 /**
  * A filter that detects concepts from an ontology in the token stream. A
- * concept token is assigned the type {@value #CONCEPT_TYPE}.
+ * concept attribute is filled with he concepts found.
  * 
  * @author rheese
  * 
  */
 public final class ConceptFilter extends TokenFilter {
-	static final Logger log = Logger.getLogger(ConceptFilter.class);
-	
-	/** token type of a concept */
-	public static final String CONCEPT_TYPE = "concept"; 
+	private static final Logger log = Logger.getLogger(ConceptFilter.class);
 
-	private OntologyIndex index;
+	private final OntologyIndex index;
 
 	/** Tokens that have been read ahead */
 	private final Queue<AttributeSource.State> queue = new LinkedList<AttributeSource.State>();
 
 	/** the attributes of the token which the filter is currently reading */
-	private final CharTermAttribute charTermAttribute;
-	private final OffsetAttribute offsetAttribute;
-	private final TypeAttribute typeAttribute;
-    
+	private final CharTermAttribute charTermAttribute = addAttribute(CharTermAttribute.class);
+	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
+	private final AfterPunctuationAttribute punctAttribute = addAttribute(AfterPunctuationAttribute.class);
+	private final ConceptAttribute conceptAttribute = addAttribute(ConceptAttribute.class);
 
 	/**
 	 * Build a ConceptFilter that uses a given ontology index
@@ -94,13 +89,8 @@ public final class ConceptFilter extends TokenFilter {
 	public ConceptFilter(TokenStream in, OntologyIndex oi) {
 		super(in);
 		index = oi;
-		
-		charTermAttribute = input.getAttribute(CharTermAttribute.class);
-		offsetAttribute = input.getAttribute(OffsetAttribute.class);
-		typeAttribute = input.getAttribute(TypeAttribute.class);
 	}
 
-	
 	/**
 	 * advances to the next token in the stream.
 	 * Takes into account that terms from the ontology might be constructed
@@ -115,38 +105,59 @@ public final class ConceptFilter extends TokenFilter {
 			return false;
 		}
 
-		Queue<AttributeSource.State> lookAhead = new LinkedList<AttributeSource.State>();
+		LinkedList<AttributeSource.State> lookAhead = new LinkedList<AttributeSource.State>();
 		List<String> terms = new ArrayList<String>();
 		terms.add(String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
 
-		while (index.isPrefix(terms) && hasMoreToken) {
+		boolean noPunctuationInterrupt = true;
+		while (index.isPrefix(terms) && hasMoreToken && noPunctuationInterrupt) {
 			lookAhead.add(captureState());
 			hasMoreToken = innerNextToken();
-			terms.add(String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
+			if (hasMoreToken) {
+				terms.add(String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
+				noPunctuationInterrupt = !punctAttribute.isAfterPunct();
+			}
+		}
+
+		// if we have concepts for "A" and "A B", but see "A C", we have "A C" on the term list now and would not find "A"
+		// try to see if we can fix that by pushing back one token
+		// same problem if we got interrupted by punctuation, like "A; B"
+		boolean isConceptMatch = noPunctuationInterrupt && index.hasExactMatches(terms);
+		if (!isConceptMatch) {
+			if (terms.size() > 1 && index.hasExactMatches(terms.subList(0, terms.size() - 1))) {
+				isConceptMatch = true;
+				queue.add(captureState());
+				restoreState(lookAhead.removeLast());
+				terms.remove(terms.size() - 1);
+			}
 		}
 
 		// if we have a match ...
-		if (index.hasExactMatches(StringUtils.join(terms.toArray(), OntologyIndex.PREFIX_SEPARATOR))) {
+		if (isConceptMatch) {
 
-			// ..then we consume all elements in the look ahead, if present
+			// ... then we reset the state to the first token found, and adjusting it
 			if (!lookAhead.isEmpty()) {
 				int maxEndOffset = offsetAttribute.endOffset();
 				restoreState(lookAhead.poll());
-				terms.remove(0); // already present in current token
-				for (String term : terms) {
-					charTermAttribute.append(OntologyIndex.PREFIX_SEPARATOR);
-					charTermAttribute.append(term);
-				}
+				// now the first term is already present in current token; append the rest
+				// XXX do we really need to do this here? we have all the information in the "terms"
+				// and in the conceptAttribute
+				//for (String term : terms.subList(1, terms.size())) {
+				//	charTermAttribute.append(OntologyIndex.PREFIX_SEPARATOR);
+				//	charTermAttribute.append(term);
+				//}
 
 				offsetAttribute.setOffset(offsetAttribute.startOffset(), maxEndOffset);
 			}
-			typeAttribute.setType(CONCEPT_TYPE);
-			if (log.isTraceEnabled()) {
-				log.trace("Concept token recognized: " + String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
-			}
-			
-		} else {
 
+			// important: only set attributes after we have finished messing with "restoreState"
+			conceptAttribute.setConcepts(index.getExactMatches(terms));
+			if (log.isTraceEnabled()) {
+				log.trace("Concept token recognized: " + terms);
+			}
+
+		} else {
+			conceptAttribute.setConcepts(null);
 			// .. else we push back in the queue the tokens already read
 			if (!lookAhead.isEmpty()) {
 				lookAhead.add(captureState());
@@ -166,6 +177,11 @@ public final class ConceptFilter extends TokenFilter {
 			return true;
 		}
 		return input.incrementToken();
+	}
+
+	public void reset() throws IOException {
+		super.reset();
+		queue.clear();
 	}
 
 }

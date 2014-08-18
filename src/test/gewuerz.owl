@@ -363,6 +363,26 @@
             >herbal condiment</rdfs:label>
         <rdfs:subClassOf rdf:resource="#Gew&#252;rz"/>
     </owl:Class>
+
+
+    <!-- http://www.ag-csw.de/ontologies/gewuerz#Pfeffer_und_Salz -->
+
+    <owl:Class rdf:about="#Pfeffer_und_Salz">
+        <rdfs:label xml:lang="de">Pfeffer und Salz</rdfs:label>
+        <rdfs:label xml:lang="en">salt and pepper</rdfs:label>
+        <rdfs:subClassOf rdf:resource="#Gew&#252;rzmischung"/>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="#Kochsalz"/>
+                    <rdf:Description rdf:about="#Pfeffer"/>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+
+    </owl:Class>
+
+
 </rdf:RDF>
 
 
