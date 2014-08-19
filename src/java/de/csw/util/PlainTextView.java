@@ -32,7 +32,7 @@ public class PlainTextView {
     private static final Pattern[] EXCLUDE_FROM_ENHANCEMENTS = {
         Pattern.compile("\\(%.*?%\\)", Pattern.DOTALL),
         Pattern.compile("\\{\\{(velocity|groovy|html|code|comment).*?\\}\\}.*?\\{\\{/\\1\\}\\}", Pattern.DOTALL),
-        Pattern.compile("\\{\\{(include).*?/\\}\\}"),
+        Pattern.compile("\\{\\{/?[a-zA-Z].*?/?\\}\\}"),
         Pattern.compile("\\[\\[.*?\\]\\]"),
     };
 

@@ -50,6 +50,7 @@ public class PlainTextViewTest {
 
         assertPlainText("", "{{include document=\"Panels.PanelSheet\"/}}");
         assertPlainText("This strikethrough content here", "This (% style=\"text-decoration: line-through;\" %)strikethrough content (%%)here");
+        assertPlainText("Include  some text.", "{{info}}Include {{include document=\"Panels.PanelSheet\"/}} some text.{{/info}}");
     }
     
     @Test
