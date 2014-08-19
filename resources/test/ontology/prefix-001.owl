@@ -12,5 +12,5 @@
   <owl:Class rdf:ID="schlank"/>
   <owl:Class rdf:ID="pflanzliches_Fett"/>
   <owl:Class rdf:ID="großes_tierisches_Vergnügen"/>
-  <owl:Class rdf:ID="sehr_sehr_viele_Worte"/>
+  <owl:Class rdf:ID="ganz_ganz_viele_Worte"/>
 </rdf:RDF>

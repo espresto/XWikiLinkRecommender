@@ -94,7 +94,6 @@ public class OntologyIndexTest extends TestBase {
 	 *            an ontology
 	 * @throws IOException
 	 */
-	// TODO: fails, as "sehr" is a stopword now
 	@Test(dataProviderClass=TestFileProvider.class, dataProvider="prefixTestFiles",
 			groups = {"functest"})
 	public void isPrefix(File inFile) throws IOException {
@@ -104,7 +103,6 @@ public class OntologyIndexTest extends TestBase {
 		
 		index.reset();
 		index.load(new FileInputStream(inFile));
-		
 		List<String> prefixes = FileUtils.readLines(txtFile);
 		for (String p : prefixes) {
 			log.trace("** checking " + p);
