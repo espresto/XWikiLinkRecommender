@@ -164,7 +164,8 @@ public class CSWGermanAnalyzer extends Analyzer {
 		Tokenizer source;
 
 		try {
-			source = new PatternTokenizer(reader, Pattern.compile("\\b"), -1);
+			// source = new PatternTokenizer(reader, Pattern.compile("\\b"), -1);
+			source = new PatternTokenizer(reader, Pattern.compile("\\s+", Pattern.UNICODE_CASE), -1);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
