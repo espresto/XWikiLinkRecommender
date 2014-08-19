@@ -1,1 +1,1 @@
-Ein Satz mit [[Links vor dem ]][[Kerbel>>http://wiki.test:8765/xwiki/bin/view/Main/LuceneSearch?text=Wiesenkerbel+K%C3%BCchengew%C3%BCrz+Glanzkerbel+Kerbel||class="similarconcept" title="Suche nach den verwandten Begriffen: Wiesenkerbel, Küchengewürz, Glanzkerbel"]].
+Ein Satz mit [[Links vor dem ]][[Kerbel>>http://wiki.test:8765/xwiki/bin/view/Main/LuceneSearch?text=Wiesenkerbel+K%C3%BCchengew%C3%BCrz+Glanzkerbel+Kerbel||class="similarconcept" title="Suche nach den verwandten Begriffen: Wiesenkerbel, Küchengewürz, Glanzkerbel"]][[ und danach]].

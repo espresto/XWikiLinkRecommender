@@ -1,1 +1,1 @@
-Ein Satz mit [[Links vor dem ]]Kerbel.
+Ein Satz mit [[Links vor dem ]]Kerbel[[ und danach]].
