@@ -65,7 +65,7 @@ public class OntologyConceptAnalyzer implements Closeable {
 		this(textToAnalyze, true);
 	}
 
-	private OntologyConceptAnalyzer(String textToAnalyze, boolean withConcepts) {
+	public OntologyConceptAnalyzer(String textToAnalyze, boolean withConcepts) {
 		Reader r = new StringReader(textToAnalyze);
 
 		ga = new CSWGermanAnalyzer(withConcepts);
@@ -116,8 +116,7 @@ public class OntologyConceptAnalyzer implements Closeable {
 	}
 
 	// the matching token, in *transformed* form
-	// only used if no concept filter
-	String token() {
+	public String token() {
 		return String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length());
 	}
 
