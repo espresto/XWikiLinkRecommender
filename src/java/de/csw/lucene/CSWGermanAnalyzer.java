@@ -56,6 +56,7 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.core.LowerCaseFilter;
+import org.apache.lucene.analysis.core.StopAnalyzer;
 import org.apache.lucene.analysis.core.StopFilter;
 import org.apache.lucene.analysis.de.GermanAnalyzer;
 import org.apache.lucene.analysis.de.GermanLightStemFilter;
@@ -109,6 +110,7 @@ public class CSWGermanAnalyzer extends Analyzer {
 		try {
 			DEFAULT_STOPWORDS = WordlistLoader.getSnowballWordSet(
 					IOUtils.getDecodingReader(SnowballFilter.class, GermanAnalyzer.DEFAULT_STOPWORD_FILE, IOUtils.CHARSET_UTF_8), Version.LUCENE_40);
+			DEFAULT_STOPWORDS.add("dass".toCharArray()); // it is really missing  ...
 		} catch (IOException e) {
 			DEFAULT_STOPWORDS = new CharArraySet(Version.LUCENE_40, Arrays.asList(GERMAN_STOP_WORDS), false);
 		}
@@ -171,9 +173,10 @@ public class CSWGermanAnalyzer extends Analyzer {
 		}
 
 		TokenStream result = source;
+		result = new PunctuationFilter(result);
 		result = new LowerCaseFilter(Version.LUCENE_40, result);
 		result = new StopFilter(Version.LUCENE_40, result, stopwords);
-		result = new PunctuationFilter(result);
+		result = new StopFilter(Version.LUCENE_40, result, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
 		if (stemExclusionSet != null) {
 			result = new KeywordMarkerFilter(result, stemExclusionSet);
 		}
