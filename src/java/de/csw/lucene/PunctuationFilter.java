@@ -31,7 +31,7 @@ public class PunctuationFilter extends FilteringTokenFilter {
 		boolean alnumSeen = false;
 		for (int i = 0; i < len;) {
 			char c = buffer[i];
-			if (Character.isAlphabetic(c)) {
+			if (Character.isAlphabetic(c) || Character.isDigit(c)) {
 				alnumSeen = true;
 			}
 
@@ -76,6 +76,6 @@ public class PunctuationFilter extends FilteringTokenFilter {
 		// TODO: maybe include more "hyphenation" and other chars
 		// see list at: http://www.fileformat.info/info/unicode/category/Pd/list.htm
 		// and maybe add these https://www.cs.tut.fi/~jkorpela/dashes.html#unidash
-		return !Character.isAlphabetic(c) && !Character.isWhitespace(c) && (Character.getType(c) != Character.DASH_PUNCTUATION);
+		return !Character.isAlphabetic(c) && !Character.isDigit(c) && !Character.isWhitespace(c) && (Character.getType(c) != Character.DASH_PUNCTUATION);
 	}
 }
