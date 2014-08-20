@@ -173,18 +173,21 @@ public class PlainTextDump implements ScriptService {
 			List<TermEntry> tfidf = new ArrayList<>();
 			for (String term : termFrequency.keySet()) {
 				double tf = ((double) termFrequency.get(term)) / ((double) termCount + 1);
-				double df = Math.log(((double) documentCount) / ((double) documentTermFrequency.get(term)));
-				tfidf.add(new TermEntry(term, tf / df));
+				double idf = ((double) documentCount) / ((double) documentTermFrequency.get(term));
+				tfidf.add(new TermEntry(term, tf * Math.log(idf)));
 			}
 
 			dumpRankToFile(tfidf, new File(exportRoot, "tfidf-" + space + ".txt"), termSpellings);
 
 			List<TermEntry> termFreq = new ArrayList<>();
+			List<TermEntry> documentFreq = new ArrayList<>();
 			for (String term : termFrequency.keySet()) {
 				termFreq.add(new TermEntry(term, (double) termFrequency.get(term)));
+				documentFreq.add(new TermEntry(term, (double) documentTermFrequency.get(term)));
 			}
 
 			dumpRankToFile(termFreq, new File(exportRoot, "simple-tf-" + space + ".txt"), termSpellings);
+			dumpRankToFile(documentFreq, new File(exportRoot, "simple-df-" + space + ".txt"), termSpellings);
 
 			List<TermEntry> avgTermFreq = new ArrayList<>();
 			for (String term : termFrequency.keySet()) {
