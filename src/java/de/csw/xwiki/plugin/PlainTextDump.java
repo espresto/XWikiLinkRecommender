@@ -136,7 +136,7 @@ public class PlainTextDump implements ScriptService {
 			Map<String, String> pages = plainTextOfSpace(space);
 
 			// different spelling variants per term
-			Map<String, Set<String>> termSpellings = new HashMap<>();
+			Map<String, Map<String, Integer>> termSpellings = new HashMap<>();
 			final int documentCount = pages.size();
 			// count how often a giver term occurs
 			Map<String, Integer> termFrequency = new HashMap<>();
@@ -152,12 +152,12 @@ public class PlainTextDump implements ScriptService {
 				while (tokenizer.hasNextMatch()) {
 					String term = tokenizer.token();
 					String origTerm = plainTextForName.substring(tokenizer.startOfMatch(), tokenizer.endOfMatch());
-					Set<String> spellings = termSpellings.get(term);
+					Map<String, Integer> spellings = termSpellings.get(term);
 					if (spellings == null) {
-						spellings = new HashSet<>();
+						spellings = new HashMap<>();
 						termSpellings.put(term, spellings);
 					}
-					spellings.add(origTerm);
+					inc(spellings, origTerm);
 
 					termCount++;
 					inc(termFrequency, term);
@@ -170,6 +170,16 @@ public class PlainTextDump implements ScriptService {
 				termsInCurrentDocument.clear();
 			}
 
+			Map<String, List<TermEntry>> spellingVariants = new HashMap<>();
+			for (Map.Entry<String, Map<String, Integer>> spellingCount : termSpellings.entrySet()) {
+				List<TermEntry> spellingsForTerm = new ArrayList<>();
+				for (Map.Entry<String, Integer> spellingVariant : spellingCount.getValue().entrySet()) {
+					spellingsForTerm.add(new TermEntry(spellingVariant.getKey(), spellingVariant.getValue().doubleValue()));
+				}
+				Collections.sort(spellingsForTerm, SORT_BY_RANK);
+				spellingVariants.put(spellingCount.getKey(), spellingsForTerm);
+			}
+
 			List<TermEntry> tfidf = new ArrayList<>();
 			for (String term : termFrequency.keySet()) {
 				double tf = ((double) termFrequency.get(term)) / ((double) termCount + 1);
@@ -177,7 +187,7 @@ public class PlainTextDump implements ScriptService {
 				tfidf.add(new TermEntry(term, tf * Math.log(idf)));
 			}
 
-			dumpRankToFile(tfidf, new File(exportRoot, "tfidf-" + space + ".txt"), termSpellings);
+			dumpRankToFile(tfidf, new File(exportRoot, "tfidf-" + space + ".txt"), spellingVariants);
 
 			List<TermEntry> termFreq = new ArrayList<>();
 			List<TermEntry> documentFreq = new ArrayList<>();
@@ -186,29 +196,28 @@ public class PlainTextDump implements ScriptService {
 				documentFreq.add(new TermEntry(term, (double) documentTermFrequency.get(term)));
 			}
 
-			dumpRankToFile(termFreq, new File(exportRoot, "simple-tf-" + space + ".txt"), termSpellings);
-			dumpRankToFile(documentFreq, new File(exportRoot, "simple-df-" + space + ".txt"), termSpellings);
+			dumpRankToFile(termFreq, new File(exportRoot, "simple-tf-" + space + ".txt"), spellingVariants);
+			dumpRankToFile(documentFreq, new File(exportRoot, "simple-df-" + space + ".txt"), spellingVariants);
 
 			List<TermEntry> avgTermFreq = new ArrayList<>();
 			for (String term : termFrequency.keySet()) {
 				avgTermFreq.add(new TermEntry(term, (double) termFrequency.get(term) / ((double) documentTermFrequency.get(term))));
 			}
 
-			dumpRankToFile(avgTermFreq, new File(exportRoot, "avg-tf-" + space + ".txt"), termSpellings);
+			dumpRankToFile(avgTermFreq, new File(exportRoot, "avg-tf-" + space + ".txt"), spellingVariants);
 
 		}
 	}
 
-	protected void dumpRankToFile(List<TermEntry> entries, File dumpFile, Map<String, Set<String>> spellings) throws IOException {
+	protected void dumpRankToFile(List<TermEntry> entries, File dumpFile, Map<String, List<TermEntry>> spellings) throws IOException {
 		Collections.sort(entries, SORT_BY_RANK);
 		PrintWriter pw = new PrintWriter(dumpFile, "UTF-8");
 		for (TermEntry entry : entries) {
-			List<String> termSpell = new ArrayList<String>(spellings.get(entry.term));
-			Collections.sort(termSpell);
+			List<TermEntry> termSpell = spellings.get(entry.term);
 			pw.print(entry.term);
-			for (String spelling : termSpell) {
+			for (TermEntry spelling : termSpell) {
 				pw.print(" | ");
-				pw.print(spelling);
+				pw.print(spelling.term);
 			}
 			pw.println(String.format("\t\t%f", entry.rank));
 		}
