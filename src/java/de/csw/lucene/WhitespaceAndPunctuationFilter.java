@@ -4,50 +4,40 @@ import java.io.IOException;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.util.FilteringTokenFilter;
 
 public class WhitespaceAndPunctuationFilter extends FilteringTokenFilter {
 
-	private boolean punctSeen = false;
-	
-	private final CharTermAttribute termAttr = addAttribute(CharTermAttribute.class);	
-	private final OffsetAttribute offsetAttr = addAttribute(OffsetAttribute.class);	
-	private final AfterPunctuationAttribute punctAttr = addAttribute(AfterPunctuationAttribute.class);
-	
+	private final CharTermAttribute termAttr = addAttribute(CharTermAttribute.class);
+	private final OffsetAttribute offsetAttr = addAttribute(OffsetAttribute.class);
+	private final PunctuationAttribute punctAttr = addAttribute(PunctuationAttribute.class);
+	private final KeywordAttribute keywordAttr = addAttribute(KeywordAttribute.class);
+
 	public WhitespaceAndPunctuationFilter(TokenStream input) {
 		super(true, input);
 	}
 
 	@Override
 	protected boolean accept() throws IOException {
-		
-		punctAttr.setAfterPunct(punctSeen);
-		char[] buffer = termAttr.buffer();
-		for (int i = 0, n = termAttr.length(); i<n; i++) {
-			char c = buffer[i];
-			if (Character.isAlphabetic(c)) {
-				punctSeen = false;
-				break;
-			}
-		}
-		
-		int len = termAttr.length();
-		
-		int incStartOffset=0;
-		int decEndOffset=0;
-		for (int i = 0; i<len; ) {
-			char c = buffer[i];
-			if (isPunctuation(c)) { 
-				punctSeen = true;
 
+		final char[] buffer = termAttr.buffer();
+		final int origLen = termAttr.length();
+		int len = origLen;
+
+		int incStartOffset = 0;
+		int decEndOffset = 0;
+		for (int i = 0; i < len;) {
+			char c = buffer[i];
+			if (isPunctuation(c)) {
 				len--;
-				if (i<len) {
-					for (int j=i;j<len;j++) {
-						buffer[j] = buffer[j+1];
+				if (i < len) {
+					for (int j = i; j < len; j++) {
+						buffer[j] = buffer[j + 1];
 					}
 				}
-				if (i==0) {
+				if (i == 0) {
 					incStartOffset++;
 				} else {
 					decEndOffset++;
@@ -55,25 +45,32 @@ public class WhitespaceAndPunctuationFilter extends FilteringTokenFilter {
 
 			} else {
 				i++;
-				decEndOffset=0;
+				decEndOffset = 0;
 			}
 		}
-		offsetAttr.setOffset(offsetAttr.startOffset()+incStartOffset, offsetAttr.endOffset() - (decEndOffset));
-		termAttr.setLength(len);
-		
-		return len>0;
+
+		boolean accept = len > 0;
+
+		if (len < origLen) {
+			termAttr.setLength(len);
+			offsetAttr.setOffset(offsetAttr.startOffset() + incStartOffset, offsetAttr.endOffset() - decEndOffset);
+			// assume it is an abbreviation if contains punctuation in the middle ... hmmm)
+			if (accept && (len - origLen > decEndOffset + incStartOffset) ) {
+				keywordAttr.setKeyword(true);
+			}
+		}
+
+		punctAttr.setPunctuation(decEndOffset > 0);
+
+		return accept;
 	}
 
 	// TODO: better "punctuation" detection
+	// we should use a positive determination (ie.. what is a punctuation) instead of a negative one
 	private boolean isPunctuation(char c) {
-		// TODO: or at least  find more "hyphenation" chars to except
-		return !Character.isAlphabetic(c) && !Character.isWhitespace(c) && c != '-';
+		// TODO: maybe include more "hyphenation" and other chars
+		// see list at: http://www.fileformat.info/info/unicode/category/Pd/list.htm
+		// and maybe add these https://www.cs.tut.fi/~jkorpela/dashes.html#unidash
+		return !Character.isAlphabetic(c) && !Character.isWhitespace(c) && (Character.getType(c) != Character.DASH_PUNCTUATION);
 	}
-	
-	@Override
-	public void reset() throws IOException {
-		super.reset();
-		punctSeen = false;
-	}
-
 }

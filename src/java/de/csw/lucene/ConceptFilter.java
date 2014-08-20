@@ -75,7 +75,7 @@ public final class ConceptFilter extends TokenFilter {
 	/** the attributes of the token which the filter is currently reading */
 	private final CharTermAttribute charTermAttribute = addAttribute(CharTermAttribute.class);
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
-	private final AfterPunctuationAttribute punctAttribute = addAttribute(AfterPunctuationAttribute.class);
+	private final PunctuationAttribute punctAttribute = addAttribute(PunctuationAttribute.class);
 	private final ConceptAttribute conceptAttribute = addAttribute(ConceptAttribute.class);
 
 	/**
@@ -109,20 +109,20 @@ public final class ConceptFilter extends TokenFilter {
 		List<String> terms = new ArrayList<String>();
 		terms.add(String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
 
-		boolean noPunctuationInterrupt = true;
+		boolean noPunctuationInterrupt = !punctAttribute.isPunctuation();
 		while (index.isPrefix(terms) && hasMoreToken && noPunctuationInterrupt) {
 			lookAhead.add(captureState());
 			hasMoreToken = innerNextToken();
 			if (hasMoreToken) {
 				terms.add(String.copyValueOf(charTermAttribute.buffer(), 0, charTermAttribute.length()));
-				noPunctuationInterrupt = !punctAttribute.isAfterPunct();
+				noPunctuationInterrupt = !punctAttribute.isPunctuation();
 			}
 		}
 
 		// if we have concepts for "A" and "A B", but see "A C", we have "A C" on the term list now and would not find "A"
 		// try to see if we can fix that by pushing back one token
 		// same problem if we got interrupted by punctuation, like "A; B"
-		boolean isConceptMatch = noPunctuationInterrupt && index.hasExactMatches(terms);
+		boolean isConceptMatch = index.hasExactMatches(terms);
 		if (!isConceptMatch) {
 			if (terms.size() > 1 && index.hasExactMatches(terms.subList(0, terms.size() - 1))) {
 				isConceptMatch = true;

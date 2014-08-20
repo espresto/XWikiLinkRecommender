@@ -3,17 +3,17 @@ package de.csw.lucene;
 import org.apache.lucene.util.AttributeImpl;
 
 // true if the current token is the first word after a punctuation
-public class AfterPunctuationAttributeImpl extends AttributeImpl implements AfterPunctuationAttribute {
+public class PunctuationAttributeImpl extends AttributeImpl implements PunctuationAttribute {
 
 	private boolean punct;
 
 	@Override
-	public void setAfterPunct(boolean value) {
+	public void setPunctuation(boolean value) {
 		punct = value;
 	}
 
 	@Override
-	public boolean isAfterPunct() {
+	public boolean isPunctuation() {
 		return punct;
 	}
 
@@ -24,8 +24,8 @@ public class AfterPunctuationAttributeImpl extends AttributeImpl implements Afte
 
 	@Override
 	public void copyTo(AttributeImpl target) {
-		AfterPunctuationAttributeImpl attrTarget = (AfterPunctuationAttributeImpl)target;
-		attrTarget.setAfterPunct(punct);
+		PunctuationAttributeImpl attrTarget = (PunctuationAttributeImpl)target;
+		attrTarget.setPunctuation(punct);
 	}
 
 }
