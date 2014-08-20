@@ -173,7 +173,7 @@ public class CSWGermanAnalyzer extends Analyzer {
 		TokenStream result = source;
 		result = new LowerCaseFilter(Version.LUCENE_40, result);
 		result = new StopFilter(Version.LUCENE_40, result, stopwords);
-		result = new WhitespaceAndPunctuationFilter(result);
+		result = new PunctuationFilter(result);
 		if (stemExclusionSet != null) {
 			result = new KeywordMarkerFilter(result, stemExclusionSet);
 		}

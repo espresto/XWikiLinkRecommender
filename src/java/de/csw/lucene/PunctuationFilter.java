@@ -8,14 +8,14 @@ import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.util.FilteringTokenFilter;
 
-public class WhitespaceAndPunctuationFilter extends FilteringTokenFilter {
+public class PunctuationFilter extends FilteringTokenFilter {
 
 	private final CharTermAttribute termAttr = addAttribute(CharTermAttribute.class);
 	private final OffsetAttribute offsetAttr = addAttribute(OffsetAttribute.class);
 	private final PunctuationAttribute punctAttr = addAttribute(PunctuationAttribute.class);
 	private final KeywordAttribute keywordAttr = addAttribute(KeywordAttribute.class);
 
-	public WhitespaceAndPunctuationFilter(TokenStream input) {
+	public PunctuationFilter(TokenStream input) {
 		super(true, input);
 	}
 
@@ -24,12 +24,17 @@ public class WhitespaceAndPunctuationFilter extends FilteringTokenFilter {
 
 		final char[] buffer = termAttr.buffer();
 		final int origLen = termAttr.length();
-		int len = origLen;
 
+		int len = origLen;
 		int incStartOffset = 0;
 		int decEndOffset = 0;
+		boolean alnumSeen = false;
 		for (int i = 0; i < len;) {
 			char c = buffer[i];
+			if (Character.isAlphabetic(c)) {
+				alnumSeen = true;
+			}
+
 			if (isPunctuation(c)) {
 				len--;
 				if (i < len) {
@@ -49,13 +54,13 @@ public class WhitespaceAndPunctuationFilter extends FilteringTokenFilter {
 			}
 		}
 
-		boolean accept = len > 0;
+		boolean accept = (len > 0) && alnumSeen;
 
 		if (len < origLen) {
 			termAttr.setLength(len);
 			offsetAttr.setOffset(offsetAttr.startOffset() + incStartOffset, offsetAttr.endOffset() - decEndOffset);
 			// assume it is an abbreviation if contains punctuation in the middle ... hmmm)
-			if (accept && (len - origLen > decEndOffset + incStartOffset) ) {
+			if (accept && (origLen - len > decEndOffset + incStartOffset)) {
 				keywordAttr.setKeyword(true);
 			}
 		}
