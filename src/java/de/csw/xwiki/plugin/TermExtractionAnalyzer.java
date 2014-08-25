@@ -157,7 +157,7 @@ public class TermExtractionAnalyzer implements ScriptService {
 	private static final Comparator<TermEntry> SORT_BY_RANK = new Comparator<TermExtractionAnalyzer.TermEntry>() {
 		@Override
 		public int compare(TermEntry t1, TermEntry t2) {
-			return - Double.compare(t1.rank, t2.rank);
+			return -Double.compare(t1.rank, t2.rank);
 		}
 	};
 
@@ -193,7 +193,7 @@ public class TermExtractionAnalyzer implements ScriptService {
 
 	/**
 	 * @param from offset from the beginning of the list. Start with zero.
-	 * @params size (maximal) number of returned elements. If the list has less than <em>size</em> elements
+	 * @param size (maximal) number of returned elements. If the list has less than <em>size</em> elements
 	 *   after <em>from</em> a shorter (possible even an empty) list
 	 * @return a sub list of the available terms, empty if wanted range not on the list of elements.
 	 *   The list is not backed by the original terms list and can be modified without influencing
@@ -205,7 +205,7 @@ public class TermExtractionAnalyzer implements ScriptService {
 		if (toIndex > tfidfResults.size()) {
 			toIndex = tfidfResults.size();
 		}
-		if (from > toIndex || from < 0) { 
+		if (from > toIndex || from < 0) {
 			from = toIndex;
 		}
 		for (TermEntry term : tfidfResults.subList(from, toIndex)) {
@@ -291,7 +291,7 @@ public class TermExtractionAnalyzer implements ScriptService {
 
 		spaceName = space;
 	}
-	
+
 	// helper to increase counter, null safe
 	private static final void inc(Map<String, Integer> counterMap, String key) {
 		Integer value = counterMap.get(key);
@@ -327,7 +327,6 @@ public class TermExtractionAnalyzer implements ScriptService {
 		}
 	}
 
-	
 	/**
 	 * helper to dump results on the local file system - for debugging only
 	 * @param rootDir
@@ -346,7 +345,6 @@ public class TermExtractionAnalyzer implements ScriptService {
 		}
 	}
 
-
 	protected void dumpRankToFile(List<TermEntry> entries, File dumpFile) throws IOException {
 		PrintWriter pw = new PrintWriter(dumpFile, "UTF-8");
 		for (TermEntry entry : entries) {
@@ -360,6 +358,7 @@ public class TermExtractionAnalyzer implements ScriptService {
 		}
 		pw.close();
 	}
+
 	private File writeableDirectory(String path) throws IOException {
 		File exportRoot = new File(path);
 		exportRoot.mkdirs();
