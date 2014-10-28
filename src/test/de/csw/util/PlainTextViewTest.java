@@ -54,11 +54,9 @@ public class PlainTextViewTest {
     }
     
     @Test
-    public void needsWork() {
-    	// barely works by accident
+    public void nestedMacroLinks() {
         assertPlainText("A Macro  inside", "A Macro {{velocity}}containing a [[Link]]{{/velocity}} inside");        
-        // here we fail:
-        // assertPlainText("A Link  inside", "A Link [[{{velocity}}with a macro{{/velocity}}]] inside");        
+        assertPlainText("A Link  inside", "A Link [[{{velocity}}with a macro{{/velocity}}]] inside");        
     }
 
     private void assertPlainText(String expectedPlainText, String text) {
@@ -68,7 +66,9 @@ public class PlainTextViewTest {
         Assert.assertEquals(expectedPlainText, plainText);
 
         for (int i = 0; i < plainText.length(); i++) {
-            int offset = plainTextView.getOriginalPosition(i);// xwt.getRealIndex(offsets, i); 
+            int offset = plainTextView.getOriginalPosition(i);
+            System.err.println(String.format("at pos %d we see %c with prefix %d as %s map to offset %s",
+            		i, plainText.charAt(i), offset,  plainText.substring(0, i), text.substring(0, offset) ) );
             Assert.assertEquals(
                     "at position " + i + " with prefix [[" + plainText.substring(0, i) + "]] : with offset " + offset,
                     String.valueOf(plainText.charAt(i)), String.valueOf(text.charAt(offset)));
